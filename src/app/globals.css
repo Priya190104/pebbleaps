@@ -1,0 +1,417 @@
+@import "tailwindcss";
+
+/* ─── Per-theme primary color overrides (applied via data-theme on <html>) ─── */
+[data-theme="sky"] {
+  --color-cream-50: #EFF8FF;
+  --color-cream-100: #DEF0FF;
+  --color-cream-200: #CBE7FF;
+  --color-cream-300: #B4D4F0;
+  --color-cream-400: #90BDE8;
+  --color-cream-500: #6AA0D4;
+  --color-cream-600: #4D85BC;
+  --color-cream-700: #3A6A9A;
+  --color-room-border: #CBE7FF;
+}
+[data-theme="peach"] {
+  --color-cream-50: #FFF6F0;
+  --color-cream-100: #FFEADC;
+  --color-cream-200: #FFD9C4;
+  --color-cream-300: #F5C4A8;
+  --color-cream-400: #EDA882;
+  --color-cream-500: #E08A5E;
+  --color-cream-600: #C8703E;
+  --color-cream-700: #A85628;
+  --color-room-border: #FFD9C4;
+}
+[data-theme="mint"] {
+  --color-cream-50: #EDFFF5;
+  --color-cream-100: #D4F5E5;
+  --color-cream-200: #B8EDD3;
+  --color-cream-300: #8ADAB5;
+  --color-cream-400: #5CC090;
+  --color-cream-500: #38A571;
+  --color-cream-600: #248A58;
+  --color-cream-700: #1A7048;
+  --color-room-border: #B8EDD3;
+}
+[data-theme="rose"] {
+  --color-cream-50: #FFF0F3;
+  --color-cream-100: #FFE0E6;
+  --color-cream-200: #FFCCD6;
+  --color-cream-300: #F5A8B8;
+  --color-cream-400: #ED8298;
+  --color-cream-500: #D8607A;
+  --color-cream-600: #C04060;
+  --color-cream-700: #A02848;
+  --color-room-border: #FFCCD6;
+}
+
+@theme {
+  /* Pebble — Pixel Cottage, Cream Warmth palette */
+  --color-cream-50: #FFF9F2;
+  --color-cream-100: #FFF0D8;
+  --color-cream-200: #F5D9A8;
+  --color-cream-300: #E8BE78;
+  --color-cream-400: #D4A048;
+  --color-cream-500: #9A6428;
+  --color-cream-600: #7C4E18;
+  --color-cream-700: #5E3A10;
+  --color-cream-800: #402808;
+  --color-cream-900: #2A1806;
+
+  --color-sky-50: #EFF8FF;
+  --color-sky-100: #DEF0FF;
+  --color-sky-200: #CBE7FF;
+  --color-sky-300: #B4D4F0;
+  --color-sky-400: #90BDE8;
+  --color-sky-500: #6AA0D4;
+
+  --color-peach-50: #FFF6F0;
+  --color-peach-100: #FFEADC;
+  --color-peach-200: #FFD9C4;
+  --color-peach-300: #F5C4A8;
+  --color-peach-400: #EDA882;
+  --color-peach-500: #E08A5E;
+
+  --color-mint-50: #EDFFF5;
+  --color-mint-100: #D4F5E5;
+  --color-mint-200: #B8EDD3;
+  --color-mint-300: #8ADAB5;
+  --color-mint-400: #5CC090;
+  --color-mint-500: #38A571;
+
+  --color-canvas: #FFF8EE;
+  --color-canvas-dark: #F5ECD8;
+  --color-room-text: #3A200A;
+  --color-room-muted: #7A5838;
+  --color-room-subtle: #B09070;
+  --color-room-border: #F0D8B0;
+  --color-room-card: #FFFFFF;
+
+  --font-sans: "Nunito", ui-rounded, system-ui, sans-serif;
+
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+}
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    font-family: "Nunito", ui-rounded, system-ui, sans-serif;
+    background-color: #FFF8EE;
+    color: #3A200A;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #FFF9F2; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb { background: var(--color-cream-300); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-cream-500); }
+}
+
+/* ─── Wallpaper patterns ─── */
+.wallpaper-dots {
+  background-color: var(--color-cream-50);
+  background-image: radial-gradient(circle, var(--color-cream-300) 1.5px, transparent 1.5px);
+  background-size: 20px 20px;
+}
+
+/* diagonal stripes — replaces old gingham which looked identical to plain */
+.wallpaper-gingham {
+  background-color: var(--color-cream-50);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent 0px, transparent 13px,
+    var(--color-cream-200) 13px, var(--color-cream-200) 14px
+  );
+}
+
+.wallpaper-stars {
+  background-color: var(--color-cream-50);
+  background-image:
+    radial-gradient(circle, var(--color-cream-300) 1px, transparent 1px),
+    radial-gradient(circle, #B4D4F0 1px, transparent 1px);
+  background-size: 28px 28px, 42px 42px;
+  background-position: 0 0, 14px 14px;
+}
+
+.wallpaper-cloud {
+  background-color: #EFF8FF;
+  background-image:
+    radial-gradient(ellipse 18px 11px at 22px 28px, rgba(180,212,240,0.55) 100%, transparent 100%),
+    radial-gradient(ellipse 26px 16px at 55px 24px, rgba(180,212,240,0.38) 100%, transparent 100%);
+  background-size: 80px 56px;
+}
+
+.wallpaper-plain { background-color: var(--color-cream-50); }
+
+/* ─── Route transitions ─── */
+::view-transition-old(.page-exit) {
+  animation: 120ms ease-out both page-fade-out;
+}
+::view-transition-new(.page-enter) {
+  animation: 180ms cubic-bezier(0.16, 1, 0.3, 1) both page-fade-in;
+}
+::view-transition {
+  pointer-events: none;
+}
+@keyframes page-fade-out {
+  to { opacity: 0; }
+}
+@keyframes page-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ─── Room card ─── */
+.room-card {
+  background: #FFFFFF;
+  border: 2px solid var(--color-room-border);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(154,100,40,0.12);
+  transition: box-shadow 0.2s ease, transform 0.18s ease;
+}
+.room-card:hover { box-shadow: 0 8px 24px rgba(154,100,40,0.20); transform: translateY(-1px); }
+
+/* ─── Priority badges ─── */
+.priority-high  { background: #FFE0CC; color: #B84A20; border: 1.5px solid #F5C4A8; }
+.priority-medium { background: #FFF0D8; color: #5E3A10; border: 1.5px solid #F5D9A8; }
+.priority-low   { background: #D4F5E5; color: #1D7A4A; border: 1.5px solid #8ADAB5; }
+
+/* ─── Tab navigation ─── */
+.room-tab {
+  padding: 6px 18px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.875rem;
+  transition: background 0.15s, color 0.15s;
+  color: #7A5838;
+  background: transparent;
+}
+.room-tab.active {
+  background: var(--color-cream-500);
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(154,100,40,0.3);
+}
+.room-tab:hover:not(.active) { background: var(--color-cream-100); color: var(--color-cream-700); }
+
+/* ─── Progress bar ─── */
+.progress-track {
+  height: 10px;
+  background: var(--color-cream-100);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--color-cream-500), var(--color-cream-300));
+  transform-origin: left center;
+  transition: transform 0.5s cubic-bezier(.4,0,.2,1);
+}
+
+/* ─── Quick-add actions ─── */
+.quick-add-trigger {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--color-cream-500), var(--color-cream-400));
+  box-shadow: 0 4px 16px rgba(154,100,40,0.4);
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 800;
+  transition: transform 0.15s, box-shadow 0.15s;
+  cursor: pointer;
+  border: none;
+  white-space: nowrap;
+}
+.quick-add-trigger:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(154,100,40,0.5); }
+.quick-add-trigger:active { transform: scale(0.98); }
+.quick-add-trigger:focus-visible,
+.mobile-add-action:focus-visible {
+  outline: 3px solid var(--color-cream-700);
+  outline-offset: 3px;
+}
+.quick-add-trigger-floating {
+  position: fixed;
+  right: 2rem;
+  bottom: 2rem;
+  z-index: 40;
+  min-height: 52px;
+  padding-inline: 20px;
+  box-shadow: 0 6px 20px rgba(154,100,40,0.35);
+}
+
+/* ─── Mobile bottom navigation ─── */
+.mobile-bottom-nav {
+  position: fixed;
+  z-index: 40;
+  right: 0.75rem;
+  bottom: max(0.75rem, env(safe-area-inset-bottom));
+  left: 0.75rem;
+}
+.mobile-bottom-nav-inner {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: center;
+  height: 68px;
+  padding: 0 4px;
+  border: 2px solid var(--color-room-border);
+  border-radius: 26px;
+  background: white;
+  box-shadow: 0 8px 32px rgba(154,100,40,0.18);
+}
+.mobile-nav-link {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--color-room-subtle);
+  text-decoration: none;
+}
+.mobile-nav-icon {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  transition: background-color 150ms, color 150ms;
+}
+.mobile-nav-link.active { color: var(--color-cream-600); }
+.mobile-nav-link.active .mobile-nav-icon {
+  background: var(--color-cream-500);
+  color: white;
+}
+.mobile-nav-label {
+  width: 100%;
+  overflow: hidden;
+  font-size: 9px;
+  font-weight: 800;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mobile-add-action {
+  position: relative;
+  display: flex;
+  width: 56px;
+  height: 56px;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  transform: translateY(-15px);
+  border: 2px solid var(--color-cream-50);
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--color-cream-500), var(--color-cream-400));
+  box-shadow: 0 5px 16px rgba(154,100,40,0.38);
+  color: white;
+  cursor: pointer;
+  transition: transform 150ms, box-shadow 150ms;
+}
+.mobile-add-action:hover { transform: translateY(-21px); }
+.mobile-add-action:active { transform: translateY(-19px) scale(0.96); }
+.mobile-add-label {
+  position: absolute;
+  top: calc(100% + 1px);
+  color: var(--color-cream-700);
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* ─── Sidebar nav item ─── */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #7A5838;
+  transition: background 0.15s, color 0.15s;
+  cursor: pointer;
+  text-decoration: none;
+}
+.nav-item:hover { background: var(--color-cream-100); color: var(--color-cream-700); }
+.nav-item.active { background: var(--color-cream-500); color: #FFFFFF; box-shadow: 0 2px 8px rgba(154,100,40,0.25); }
+
+/* ─── Decoration sparkle animation ─── */
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-4px) rotate(3deg); }
+}
+.deco-float { animation: float-gentle 3s ease-in-out infinite; }
+.deco-float-slow { animation: float-gentle 5s ease-in-out infinite; }
+
+@keyframes shimmer-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.widget-enter { animation: shimmer-in 0.4s cubic-bezier(.4,0,.2,1) both; }
+.widget-enter-2 { animation: shimmer-in 0.4s 0.08s cubic-bezier(.4,0,.2,1) both; }
+.widget-enter-3 { animation: shimmer-in 0.4s 0.16s cubic-bezier(.4,0,.2,1) both; }
+
+/* ─── Modal sheet animations ─── */
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes slide-down {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}
+@keyframes overlay-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes overlay-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.modal-sheet[data-state="open"]   { animation: slide-up 0.32s cubic-bezier(.32,0,.15,1) both; }
+.modal-sheet[data-state="closed"] { animation: slide-down 0.24s ease-in both; }
+.modal-overlay[data-state="open"]   { animation: overlay-fade-in 0.2s ease both; }
+.modal-overlay[data-state="closed"] { animation: overlay-fade-out 0.2s ease both; }
+
+/* ─── Task check button ─── */
+@keyframes check-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+.task-check-done { animation: check-pop 0.22s cubic-bezier(.4,0,.2,1); }
+
+/* ─── Wallpaper swatch hover ─── */
+.wallpaper-swatch {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.wallpaper-swatch:hover { transform: scale(1.12); }
+.wallpaper-swatch.active {
+  box-shadow: 0 0 0 3px var(--color-cream-500);
+  transform: scale(1.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .widget-enter,
+  .widget-enter-2,
+  .widget-enter-3 {
+    animation: none !important;
+  }
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}

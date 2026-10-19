@@ -1,0 +1,274 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // URL diatur di prisma.config.ts (untuk CLI) dan env DATABASE_URL (untuk runtime)
+}
+
+// ── NextAuth v5 required ────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+
+  roomSettings    RoomSettings?
+  tasks           Task[]
+  categories      Category[]
+  transactions    Transaction[]
+  budgets         Budget[]
+  goals           Goal[]
+  pushSubs        PushSubscription[]
+  wallets         Wallet[]
+  reconciliations WalletReconciliation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ── App models ───────────────────────────────────────────────────────────────
+
+model RoomSettings {
+  id         String @id @default(cuid())
+  userId     String @unique
+  roomName   String @default("Ruanganku")
+  userName   String @default("Teman")
+  wallpaper  String @default("plain")
+  themeColor String @default("cream")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Task {
+  id               String                @id @default(cuid())
+  userId           String
+  title            String
+  priority         String                @default("sedang")
+  status           String                @default("todo")
+  deadline         DateTime?
+  completedAt      DateTime?
+  subtasks         SubTask[]
+  completionEvents TaskCompletionEvent[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+model SubTask {
+  id     String  @id @default(cuid())
+  taskId String
+  title  String
+  done   Boolean @default(false)
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model TaskCompletionEvent {
+  id          String   @id @default(cuid())
+  taskId      String
+  completedAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, completedAt])
+}
+
+model Category {
+  id        String  @id @default(cuid())
+  userId    String
+  name      String
+  color     String
+  icon      String
+  isDefault Boolean @default(false)
+  isSavings Boolean @default(false)
+  forIncome Boolean @default(false)
+  isActive  Boolean @default(true)
+
+  transactions Transaction[]
+  budgets      Budget[]
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Transaction {
+  id               String   @id @default(cuid())
+  userId           String
+  type             String
+  amount           Int
+  note             String
+  categoryId       String
+  date             DateTime @default(now())
+  walletId         String?
+  reconciliationId String?
+
+  category       Category              @relation(fields: [categoryId], references: [id])
+  wallet         Wallet?               @relation(fields: [walletId], references: [id])
+  reconciliation WalletReconciliation? @relation(fields: [reconciliationId], references: [id], onDelete: SetNull)
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([reconciliationId])
+}
+
+model Budget {
+  id             String @id @default(cuid())
+  userId         String
+  categoryId     String
+  amount         Int
+  rolloverAmount Int    @default(0)
+  month          Int
+  year           Int
+
+  category Category @relation(fields: [categoryId], references: [id])
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, categoryId, month, year])
+  @@index([userId, month, year])
+}
+
+model Goal {
+  id           String            @id @default(cuid())
+  userId       String
+  type         String
+  title        String
+  description  String?
+  targetValue  Float?
+  currentValue Float?
+  unit         String?
+  deadline     DateTime?
+  milestones   Milestone[]
+  habitLogs    HabitLog[]
+  progressLogs GoalProgressLog[]
+  notes        GoalNote[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Milestone {
+  id       String    @id @default(cuid())
+  goalId   String
+  title    String
+  done     Boolean   @default(false)
+  deadline DateTime?
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+}
+
+model HabitLog {
+  id     String   @id @default(cuid())
+  goalId String
+  date   DateTime @db.Date
+  done   Boolean  @default(true)
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, date])
+}
+
+model GoalNote {
+  id        String   @id @default(cuid())
+  goalId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+}
+
+model GoalProgressLog {
+  id        String   @id @default(cuid())
+  goalId    String
+  value     Float
+  createdAt DateTime @default(now())
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId, createdAt])
+}
+
+model PushSubscription {
+  id       String @id @default(cuid())
+  userId   String
+  endpoint String @unique
+  p256dh   String
+  auth     String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Wallet {
+  id     String @id @default(cuid())
+  userId String
+  name   String
+  type   String @default("cash")
+  icon   String @default("💵")
+  color  String @default("#E8BE78")
+
+  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+  reconciliations WalletReconciliation[]
+
+  @@index([userId])
+}
+
+model WalletReconciliation {
+  id               String   @id @default(cuid())
+  userId           String
+  walletId         String?
+  walletName       String
+  statementDate    DateTime @db.Date
+  statementBalance Int
+  createdAt        DateTime @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet       Wallet?       @relation(fields: [walletId], references: [id], onDelete: SetNull)
+  transactions Transaction[]
+}
