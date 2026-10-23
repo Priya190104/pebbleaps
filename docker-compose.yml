@@ -1,12 +1,9 @@
 services:
   app:
-    build:
-      context: .
-      args:
-        NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+    image: ${PEBBLE_IMAGE:-ghcr.io/priya190104/pebbleaps:app}
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://pebble:pebble@db:5432/pebble
+      DATABASE_URL: postgresql://pebble:${POSTGRES_PASSWORD:-pebble}@db:5432/pebble?schema=public
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: ${NEXTAUTH_URL}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
@@ -19,6 +16,17 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  migrate:
+    image: ${PEBBLE_MIGRATOR_IMAGE:-ghcr.io/priya190104/pebbleaps:migrate}
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql://pebble:${POSTGRES_PASSWORD:-pebble}@db:5432/pebble?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:16-alpine
@@ -28,7 +36,7 @@ services:
     environment:
       POSTGRES_DB: pebble
       POSTGRES_USER: pebble
-      POSTGRES_PASSWORD: pebble
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pebble}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U pebble"]
       interval: 10s

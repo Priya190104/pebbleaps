@@ -31,6 +31,8 @@ Stack: **Next.js 16** · **PostgreSQL 16** · **Nginx** · **Docker Compose** ·
 | Storage  | 20 GB SSD | 40 GB SSD |
 | OS       | Ubuntu 22.04 LTS | Ubuntu 22.04 LTS |
 
+> RAM 1 GB hanya ditujukan untuk pemakaian ringan dan tetap ketat karena aplikasi, PostgreSQL, Nginx, serta sistem operasi berbagi memori. Build dijalankan oleh GitHub Actions, bukan di VPS. Jika penggunaan meningkat atau terjadi proses dihentikan karena kehabisan memori, naikkan VPS ke 2 GB.
+
 > Provider VPS yang umum: DigitalOcean, Vultr, Hetzner, Linode, atau IDCloudHost.
 
 ### Yang Kamu Butuhkan
@@ -38,7 +40,7 @@ Stack: **Next.js 16** · **PostgreSQL 16** · **Nginx** · **Docker Compose** ·
 - Akses SSH ke VPS (username + password atau SSH key)
 - Nama domain yang sudah dibeli (contoh: `aplikasiku.com`)
 - Akun Google Cloud Console untuk OAuth
-- Kode sumber aplikasi ini
+- Repository GitHub dan GitHub Actions aktif untuk membangun image Docker
 
 ---
 
@@ -217,6 +219,9 @@ Isi file `.env` dengan nilai yang sudah kamu siapkan di Langkah 3:
 NEXTAUTH_URL=https://yourdomain.com
 NEXTAUTH_SECRET=<hasil_openssl_rand_dari_langkah_3.3>
 
+# Password PostgreSQL baru; gunakan karakter hex agar aman di DATABASE_URL
+POSTGRES_PASSWORD=<hasil_openssl_rand_-hex_24>
+
 # ── Google OAuth ────────────────────────────────────────────
 GOOGLE_CLIENT_ID=<client_id_dari_google_console>
 GOOGLE_CLIENT_SECRET=<client_secret_dari_google_console>
@@ -231,13 +236,29 @@ VAPID_EMAIL=mailto:admin@yourdomain.com
 # Secret acak untuk pemanggilan pengingat terjadwal (minimal 32 byte acak)
 CRON_SECRET=<secret_acak_untuk_cron>
 
-# DATABASE_URL diatur secara internal di docker-compose.yml
-# Tidak perlu diubah kecuali kamu ingin pakai DB eksternal
+# DATABASE_URL dan nama image Docker diatur di docker-compose.yml
 ```
 
 > **Penting:** Ganti `yourdomain.com` di semua baris dengan domain kamu yang sebenarnya.
+> Buat password baru dengan `openssl rand -hex 24`. Jika menggunakan database volume lama yang sebelumnya memakai password `pebble`, pertahankan nilai `POSTGRES_PASSWORD=pebble` agar aplikasi tetap dapat tersambung; ubah password database lama secara terencana sebelum menggantinya.
 
-### 5.3 Buat Folder Sertifikat Nginx
+### 5.3 Siapkan build image otomatis
+
+Workflow `.github/workflows/publish-images.yml` membangun image aplikasi dan migrasi di GitHub Actions saat ada push ke branch `main` atau `master`. VPS hanya mengunduh image hasil build, sehingga tidak menjalankan proses build yang berat.
+
+1. Di GitHub, buka **Settings → Secrets and variables → Actions → Variables**, lalu tambahkan variable `VAPID_PUBLIC_KEY` dengan nilai VAPID public key aplikasi.
+2. Push perubahan ke `main` atau `master`, lalu pastikan workflow **Build and publish Docker images** berhasil di tab **Actions**.
+3. Pastikan package GitHub Container Registry (`ghcr.io/priya190104/pebbleaps`) dapat di-pull oleh VPS. Untuk package private, login di VPS memakai Personal Access Token yang memiliki akses `read:packages`:
+
+   ```bash
+   read -s GHCR_READ_TOKEN
+   printf '%s' "$GHCR_READ_TOKEN" | docker login ghcr.io -u <USERNAME_GITHUB> --password-stdin
+   unset GHCR_READ_TOKEN
+   ```
+
+> Ganti nama image pada `docker-compose.yml` jika repository GitHub ini dipindah atau menggunakan nama package GHCR yang berbeda.
+
+### 5.4 Buat Folder Sertifikat Nginx
 
 ```bash
 mkdir -p /opt/pebble/nginx/certs
@@ -360,8 +381,9 @@ server {
 ```bash
 cd /opt/pebble
 
-# Build image dan jalankan semua service (app + db + nginx)
-docker compose up -d --build
+# Unduh image yang sudah dibangun GitHub Actions, lalu jalankan layanan
+docker compose pull
+docker compose up -d
 
 # Cek status semua container
 docker compose ps
@@ -370,17 +392,20 @@ docker compose ps
 Output yang diharapkan:
 ```
 NAME            IMAGE           STATUS          PORTS
-pebble-app-1    pebble-app      Up (healthy)
-pebble-db-1     postgres:16     Up (healthy)
-pebble-nginx-1  nginx:alpine    Up              0.0.0.0:80->80, 0.0.0.0:443->443
+pebble-app-1      ghcr.io/...:app       Up
+pebble-migrate-1  ghcr.io/...:migrate   Exited (0)
+pebble-db-1       postgres:16-alpine    Up (healthy)
+pebble-nginx-1    nginx:alpine          Up
 ```
+
+Service `migrate` yang berstatus `Exited (0)` menandakan migrasi berhasil. Aplikasi menunggu migrasi selesai sebelum mulai menerima trafik.
 
 ### (Opsional) Seed Data Awal
 
 Jika kamu ingin mengisi database dengan data contoh:
 
 ```bash
-docker compose exec app npx prisma db seed
+docker compose run --rm migrate ./node_modules/.bin/prisma db seed
 ```
 
 ### Jadwalkan Pengingat Deadline
@@ -457,11 +482,12 @@ docker compose restart nginx
 ```bash
 cd /opt/pebble
 
-# Pull kode terbaru (jika pakai Git)
+# Ambil konfigurasi deploy terbaru
 git pull
 
-# Rebuild dan restart hanya container app
-docker compose up -d --build app
+# Ambil image terbaru dari GitHub Actions dan deploy tanpa build di VPS
+docker compose pull
+docker compose up -d
 ```
 
 ### Backup Database
@@ -493,7 +519,7 @@ docker compose down -v
 ### Jalankan Migrasi Database Manual
 
 ```bash
-docker compose exec app npx prisma migrate deploy
+docker compose run --rm migrate
 ```
 
 Migrasi analitik menambahkan riwayat penyelesaian tugas dan perubahan progress goal. Migrasi ini tidak menghapus data, tetapi riwayat hanya tercatat mulai setelah migrasi diterapkan; data lama yang tidak memiliki log tidak direkonstruksi. Detail metrik dan sumber pola desain ada di [ANALYTICS.md](./ANALYTICS.md).
@@ -516,7 +542,7 @@ docker compose logs app
 
 Penyebab umum:
 - `DATABASE_URL` salah → cek `.env`
-- Migrasi gagal → cek log Prisma di output container
+- Migrasi gagal → cek `docker compose logs migrate`
 - Port 3000 konflik → jarang terjadi dalam Docker network
 
 ### Error `NEXTAUTH_URL` mismatch
@@ -544,7 +570,7 @@ docker compose restart nginx
 ### Push Notification tidak berfungsi
 
 - Pastikan `VAPID_PUBLIC_KEY` dan `VAPID_PRIVATE_KEY` di `.env` sesuai pasangannya (generate ulang jika tidak yakin)
-- Pastikan `NEXT_PUBLIC_VAPID_PUBLIC_KEY` sama dengan `VAPID_PUBLIC_KEY`. Docker Compose meneruskan kunci publik sebagai build argument; bangun ulang image (`docker compose build app`) setelah mengubahnya.
+- Pastikan variable GitHub Actions `VAPID_PUBLIC_KEY` sama dengan `VAPID_PUBLIC_KEY` di `.env`. Setelah mengubahnya, jalankan workflow build image lagi lalu `docker compose pull` dan `docker compose up -d`.
 - Akses harus via HTTPS — push notification **tidak bisa** berjalan di HTTP
 
 ### Login Google gagal / redirect error
@@ -558,16 +584,19 @@ docker compose restart nginx
 ## Ringkasan Alur Deploy
 
 ```
-VPS
+GitHub Actions
+ ├── Build image app (Next.js standalone)
+ ├── Build image migrasi (Prisma CLI)
+ └── Push keduanya ke GitHub Container Registry
+
+VPS 1 GB
  ├── Install Docker, Git, Certbot
- ├── Clone repo → /opt/pebble
- ├── Buat .env (isi semua variabel)
- ├── certbot certonly → dapat SSL cert
- ├── Salin cert ke nginx/certs/
- ├── Edit nginx/nginx.conf → aktifkan HTTPS
- └── docker compose up -d --build
+ ├── Clone repo → /opt/pebble; isi .env
+ ├── Ambil SSL cert dan aktifkan konfigurasi HTTPS
+ └── docker compose pull && docker compose up -d
          ├── Container: db (PostgreSQL)
-         ├── Container: app (Next.js — jalankan migrate + server)
+         ├── Container: migrate (jalankan migrasi lalu berhenti)
+         ├── Container: app (Next.js standalone)
          └── Container: nginx (reverse proxy + SSL termination)
 ```
 
