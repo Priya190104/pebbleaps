@@ -549,6 +549,26 @@ Penyebab umum:
 
 Pastikan nilai `NEXTAUTH_URL` di `.env` **persis sama** dengan URL yang dipakai di browser, termasuk `https://` dan tanpa trailing slash.
 
+### Halaman "Welcome to nginx!" muncul
+
+Konfigurasi di `nginx/nginx.conf` meneruskan request ke service `app`. Jika halaman bawaan Nginx muncul, periksa apakah Compose dijalankan dari folder deployment yang benar dan apakah konfigurasi tersebut benar-benar ter-mount:
+
+```bash
+cd /opt/pebble
+test -f nginx/nginx.conf
+docker compose ps
+docker compose exec nginx sh -c 'grep -nE "upstream pebble_app|proxy_pass http://pebble_app" /etc/nginx/conf.d/default.conf'
+```
+
+Perintah terakhir seharusnya menampilkan `upstream pebble_app` dan `proxy_pass http://pebble_app`. Jika berkas tidak ada atau hasilnya berbeda, pastikan folder `nginx/` dari repository tersedia di `/opt/pebble`, lalu buat ulang container Nginx:
+
+```bash
+docker compose up -d --force-recreate nginx
+docker compose exec nginx nginx -t
+```
+
+Jika Compose dijalankan dengan file konfigurasi dari lokasi lain, gunakan `-f /opt/pebble/docker-compose.yml --project-directory /opt/pebble` pada perintah di atas agar bind mount memakai folder deployment yang benar. Bila konfigurasi container sudah cocok tetapi halaman bawaan tetap muncul, periksa apakah port 80 pada host diarahkan ke container atau service Nginx lain.
+
 ### SSL tidak muncul / sertifikat expired
 
 ```bash
