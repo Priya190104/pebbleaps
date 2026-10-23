@@ -1,15 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 
-export async function middleware(req: NextRequest) {
-  const authUrl = process.env.NEXTAUTH_URL || process.env.AUTH_URL;
-  const token = await getToken({
-    req,
-    secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
-    secureCookie: authUrl ? authUrl.startsWith("https://") : req.nextUrl.protocol === "https:",
-  });
-
-  const isLoggedIn = !!token;
+export const proxy = auth((req) => {
+  const isLoggedIn = !!req.auth;
   const { pathname } = req.nextUrl;
 
   const isPublic =
@@ -26,7 +19,7 @@ export async function middleware(req: NextRequest) {
   if (isLoggedIn && pathname === "/login") {
     return NextResponse.redirect(new URL("/", req.nextUrl));
   }
-}
+});
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|icons).*)"],
