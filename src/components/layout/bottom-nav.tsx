@@ -16,7 +16,9 @@ const navLinks = [
 export function BottomNav() {
   const pathname = usePathname();
   const renderLink = ({ href, label, icon: Icon }: (typeof navLinks)[number]) => {
-    const active = pathname === href;
+    const active = href === "/finance"
+      ? pathname.startsWith("/finance")
+      : pathname === href;
 
     return (
       <Link

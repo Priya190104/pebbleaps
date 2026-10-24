@@ -34,7 +34,7 @@ interface BudgetManagerCardProps {
 }
 
 function periodHref(month: number, year: number) {
-  return `/finance?month=${month}&year=${year}`;
+  return `/finance?tab=budget&month=${month}&year=${year}`;
 }
 
 function adjacentPeriod(month: number, year: number, direction: -1 | 1) {

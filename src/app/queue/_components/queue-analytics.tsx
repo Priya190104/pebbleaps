@@ -34,9 +34,9 @@ export function QueueAnalytics({ tasks, events }: { tasks: Task[]; events: Compl
 
 function Metric({ label, value, warning = false }: { label: string; value: number; warning?: boolean }) {
   return (
-    <div className="px-2">
+    <div className="min-w-0 px-1 sm:px-2">
       <p className={`text-lg font-extrabold leading-tight ${warning ? "text-peach-500" : "text-room-text"}`}>{value}</p>
-      <p className="mt-1 text-[10px] font-bold leading-tight text-room-muted">{label}</p>
+      <p className="mt-1 wrap-break-word text-[10px] font-bold leading-tight text-room-muted">{label}</p>
     </div>
   );
 }

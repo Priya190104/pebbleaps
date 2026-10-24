@@ -10,7 +10,7 @@ interface PieEntry { name: string; value: number; icon: string }
 export function FinancePieChart({ data }: { data: PieEntry[] }) {
   if (data.length === 0) return null;
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex min-w-0 items-center gap-3 sm:gap-4">
       <div className="w-32 h-32 shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -23,12 +23,12 @@ export function FinancePieChart({ data }: { data: PieEntry[] }) {
           </PieChart>
         </ResponsiveContainer>
       </div>
-      <ul className="flex-1 space-y-1.5">
+      <ul className="min-w-0 flex-1 space-y-1.5">
         {data.map((d, i) => (
           <li key={d.name} className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
             <span className="text-xs font-semibold text-room-muted flex-1 truncate">{d.name}</span>
-            <span className="text-xs font-bold text-room-text">{formatRupiah(d.value)}</span>
+            <span className="shrink-0 text-[10px] font-bold text-room-text sm:text-xs">{formatRupiah(d.value)}</span>
           </li>
         ))}
       </ul>

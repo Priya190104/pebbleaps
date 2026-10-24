@@ -41,14 +41,14 @@ const accentColors = {
 export function RoomCardHeader({ icon, title, badge, action, accent = "cream" }: RoomCardHeaderProps) {
   return (
     <div className="flex items-center justify-between mb-4">
-      <div className="flex items-center gap-2.5">
+      <div className="flex min-w-0 items-center gap-2.5">
         <span className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0", accentColors[accent])}>
           {icon}
         </span>
-        <span className="font-800 text-room-text text-sm font-extrabold">{title}</span>
-        {badge}
+        <span className="min-w-0 wrap-anywhere text-sm font-extrabold text-room-text">{title}</span>
+        {badge !== undefined && badge !== null && <span className="shrink-0">{badge}</span>}
       </div>
-      {action}
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }

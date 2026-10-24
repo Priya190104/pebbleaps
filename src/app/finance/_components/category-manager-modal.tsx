@@ -89,7 +89,7 @@ function CategoryRow({
   return (
     <div className="group flex flex-wrap items-center gap-2 p-2 rounded-xl hover:bg-cream-50 transition-colors">
       <span className="text-base w-7 text-center shrink-0">{cat.icon}</span>
-      <span className="min-w-0 flex-1 break-words text-sm font-bold text-room-text">{cat.name}</span>
+      <span className="min-w-0 flex-1 wrap-break-word text-sm font-bold text-room-text">{cat.name}</span>
       {cat.isSavings && (
         <span className="shrink-0 rounded-full bg-cream-100 px-2 py-0.5 text-[10px] font-bold text-room-muted">
           Penampung sisa

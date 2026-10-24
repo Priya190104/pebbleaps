@@ -77,13 +77,21 @@ export async function getFinanceData() {
     }),
     prisma.wallet.findMany({
       where: { userId },
-      include: { transactions: { select: { type: true, amount: true } } },
+      include: {
+        transactions: { select: { type: true, amount: true } },
+        reconciliations: {
+          select: { id: true },
+          take: 1,
+          orderBy: { statementDate: "desc" },
+        },
+      },
       orderBy: { name: "asc" },
     }),
   ]);
-  const wallets = rawWallets.map(({ transactions: txs, ...w }) => ({
+  const wallets = rawWallets.map(({ transactions: txs, reconciliations, ...w }) => ({
     ...w,
     balance: computeBalance(txs),
+    hasReconciliation: reconciliations.length > 0,
   }));
   return { transactions, categories, budgets, wallets };
 }
@@ -401,12 +409,40 @@ export async function getWallets() {
   return wallets.map(({ transactions, ...w }) => ({ ...w, balance: computeBalance(transactions) }));
 }
 
-export async function createWallet(data: { name: string; type: string; icon: string; color?: string }) {
+export async function createWallet(data: {
+  name: string;
+  type: string;
+  icon: string;
+  color?: string;
+  initialBalance?: number;
+}) {
   const userId = await requireUser();
   const normalized = validateWalletInput(data, true);
-  const w = await prisma.wallet.create({ data: { userId, ...normalized } });
+  const initialBalance = validateWalletBalance(data.initialBalance ?? 0);
+  const w = await prisma.$transaction(async (tx) => {
+    const wallet = await tx.wallet.create({ data: { userId, ...normalized } });
+    if (initialBalance > 0) {
+      const category = await tx.category.findFirst({
+        where: { userId, forIncome: true },
+        orderBy: { name: "asc" },
+        select: { id: true },
+      });
+      if (!category) throw new ValidationError("Tambahkan kategori pemasukan sebelum mengisi saldo awal");
+      await tx.transaction.create({
+        data: {
+          userId,
+          walletId: wallet.id,
+          categoryId: category.id,
+          type: "masuk",
+          amount: initialBalance,
+          note: "(saldo awal)",
+        },
+      });
+    }
+    return wallet;
+  });
   revalidatePath("/finance");
-  return { ...w, balance: 0 };
+  return { ...w, balance: initialBalance, hasReconciliation: false };
 }
 
 export async function updateWallet(id: string, data: { name?: string; icon?: string; color?: string }) {
@@ -430,7 +466,7 @@ export async function deleteWallet(id: string) {
   revalidatePath("/finance");
 }
 
-// Reconcile wallet balance: creates an auto-transaction with note "(balance)" if needed
+// Keep pre-reconciliation balance changes visible as ordinary transactions.
 export async function setWalletBalance(walletId: string, targetBalance: number) {
   const userId = await requireUser();
   const target = validateWalletBalance(targetBalance);
@@ -438,9 +474,19 @@ export async function setWalletBalance(walletId: string, targetBalance: number) 
   await prisma.$transaction(async (tx) => {
     const wallet = await tx.wallet.findFirst({
       where: { id: walletId, userId },
-      include: { transactions: { select: { type: true, amount: true } } },
+      include: {
+        transactions: { select: { type: true, amount: true } },
+        reconciliations: {
+          select: { id: true },
+          take: 1,
+          orderBy: { statementDate: "desc" },
+        },
+      },
     });
     if (!wallet) throw new Error("Kantong tidak ditemukan");
+    if (wallet.reconciliations.length > 0) {
+      throw new ValidationError("Saldo kantong yang sudah direkonsiliasi tidak dapat diubah langsung. Catat koreksi sebagai transaksi.");
+    }
 
     const diff = target - computeBalance(wallet.transactions);
     if (diff === 0) return;
@@ -462,7 +508,7 @@ export async function setWalletBalance(walletId: string, targetBalance: number) 
         categoryId: category.id,
         type,
         amount: Math.abs(diff),
-        note: "(balance)",
+        note: "(penyesuaian saldo)",
       },
     });
   }, { isolationLevel: "Serializable" });

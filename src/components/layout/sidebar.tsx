@@ -47,7 +47,9 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1">
         {navLinks.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href;
+          const active = href === "/finance"
+            ? pathname.startsWith("/finance")
+            : pathname === href;
           return (
             <Link key={href} href={href} className={cn("nav-item", active && "active")}>
               <Icon size={17} strokeWidth={2.5} />

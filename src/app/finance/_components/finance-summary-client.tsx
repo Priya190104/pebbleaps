@@ -84,30 +84,30 @@ export function FinanceSummaryClient({
         <div className="w-10 h-10 rounded-2xl bg-peach-100 flex items-center justify-center shrink-0">
           <Wallet size={18} className="text-peach-500" />
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-room-muted text-xs font-bold uppercase tracking-wide">
             {period === "monthly" ? selectedMonthTitle : PERIOD_TITLES[period]}
           </p>
-          <p className={cn("text-2xl font-extrabold leading-tight", balance < 0 && "text-peach-500")}>
+          <p className={cn("wrap-break-word text-2xl font-extrabold leading-tight", balance < 0 && "text-peach-500")}>
             {formatRupiah(balance)}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-mint-50 rounded-xl p-3 border border-mint-200">
+        <div className="min-w-0 bg-mint-50 rounded-xl p-3 border border-mint-200">
           <div className="flex items-center gap-1.5 mb-1">
             <TrendingUp size={13} className="text-mint-500" />
             <span className="text-[11px] font-bold text-mint-600 uppercase tracking-wide">Masuk</span>
           </div>
-          <p className="text-room-text text-base font-extrabold">{formatRupiah(totalIn)}</p>
+          <p className="wrap-break-word text-room-text text-sm font-extrabold sm:text-base">{formatRupiah(totalIn)}</p>
         </div>
-        <div className="bg-peach-50 rounded-xl p-3 border border-peach-200">
+        <div className="min-w-0 bg-peach-50 rounded-xl p-3 border border-peach-200">
           <div className="flex items-center gap-1.5 mb-1">
             <TrendingDown size={13} className="text-peach-500" />
             <span className="text-[11px] font-bold text-peach-600 uppercase tracking-wide">Keluar</span>
           </div>
-          <p className="text-room-text text-base font-extrabold">{formatRupiah(totalOut)}</p>
+          <p className="wrap-break-word text-room-text text-sm font-extrabold sm:text-base">{formatRupiah(totalOut)}</p>
         </div>
       </div>
     </div>

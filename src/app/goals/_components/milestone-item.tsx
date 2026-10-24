@@ -33,7 +33,7 @@ export function MilestoneItem({ id, title, done: initial, deadline }: MilestoneI
         {done && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
       </button>
       <div className="min-w-0 flex-1">
-        <span className={cn("text-xs font-medium", done ? "line-through text-room-subtle" : "text-room-muted")}>
+        <span className={cn("wrap-anywhere text-xs font-medium", done ? "line-through text-room-subtle" : "text-room-muted")}>
           {title}
         </span>
         {deadline && <time className="ml-2 text-[10px] font-semibold text-room-muted">{new Date(deadline).toLocaleDateString("id-ID", { dateStyle: "medium" })}</time>}

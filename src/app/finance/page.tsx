@@ -10,11 +10,12 @@ import { WalletsCard } from "./_components/wallets-card";
 import { CategoryManagerModal } from "./_components/category-manager-modal";
 import { BudgetManagerCard } from "./_components/budget-manager-card";
 import { FinanceMonthlyTrend } from "./_components/finance-monthly-trend";
+import { FinanceSubnav, type FinanceTab } from "./_components/finance-subnav";
 
 type FinanceData = Awaited<ReturnType<typeof getFinanceData>>;
 type Tx = FinanceData["transactions"][number];
 type Cat = FinanceData["categories"][number];
-type SearchParams = Promise<{ month?: string; year?: string }>;
+type SearchParams = Promise<{ month?: string; year?: string; tab?: string }>;
 
 function selectedPeriod(params: { month?: string; year?: string }) {
   const now = new Date();
@@ -29,7 +30,11 @@ function selectedPeriod(params: { month?: string; year?: string }) {
 }
 
 export default async function FinancePage({ searchParams }: { searchParams: SearchParams }) {
-  const period = selectedPeriod(await searchParams);
+  const params = await searchParams;
+  const period = selectedPeriod(params);
+  const tab: FinanceTab = params.tab === "transactions" || params.tab === "budget" || params.tab === "wallets"
+    ? params.tab
+    : "summary";
   const { transactions, categories, budgets, wallets }: FinanceData = await getFinanceData();
 
   const activeCategories = categories.filter((c: Cat) => c.isActive);
@@ -53,68 +58,84 @@ export default async function FinancePage({ searchParams }: { searchParams: Sear
 
   return (
     <RoomShell>
-      <div className="flex items-center justify-between mb-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-room-text text-xl font-extrabold">Keuangan</h1>
-          <p className="text-room-muted text-sm font-semibold">Pantau keuanganmu</p>
+          <p className="text-room-muted text-sm font-semibold">
+            {tab === "summary" && "Pantau keuanganmu"}
+            {tab === "transactions" && "Catat dan telusuri transaksi"}
+            {tab === "budget" && "Atur batas pengeluaran"}
+            {tab === "wallets" && "Kelola saldo dan rekonsiliasi"}
+          </p>
         </div>
         <div className="flex items-center gap-3">
-          <CategoryManagerModal categories={activeCategories} />
+          {tab === "transactions" && <CategoryManagerModal categories={activeCategories} />}
           <PageFab defaultTab="keuangan" onlyTab="keuangan" />
         </div>
       </div>
 
-      <WalletsCard
-        key={wallets.map((wallet) =>
-          [wallet.id, wallet.name, wallet.type, wallet.icon, wallet.color, wallet.balance].join(":"),
-        ).join("|")}
-        wallets={wallets}
-        transactions={transactions.map(({ id, walletId, type, amount, note, date, reconciliationId }) => ({
-          id, walletId, type, amount, note, date, reconciliationId,
-        }))}
-      />
-      <FinanceSummaryClient transactions={transactions} month={period.month} year={period.year} />
+      <FinanceSubnav activeTab={tab} month={period.month} year={period.year} />
 
-      <RoomCard className="mb-4">
-        <RoomCardHeader icon={<PixelCoin size={18} />} title="Tren Keuangan 6 Bulan" accent="mint" />
-        <FinanceMonthlyTrend transactions={transactions} />
-      </RoomCard>
+      {tab === "summary" && (
+        <>
+          <FinanceSummaryClient transactions={transactions} month={period.month} year={period.year} />
+          <RoomCard className="mb-4 min-w-0">
+            <RoomCardHeader icon={<PixelCoin size={18} />} title="Tren Keuangan 6 Bulan" accent="mint" />
+            <FinanceMonthlyTrend transactions={transactions} />
+          </RoomCard>
+          <RoomCard className="mb-4 min-w-0">
+            <RoomCardHeader
+              icon={<PixelCoin size={18} />}
+              title={`Pengeluaran per Kategori · ${new Date(period.year, period.month - 1, 1).toLocaleDateString("id-ID", { month: "long", year: "numeric" })}`}
+              accent="peach"
+            />
+            {pieData.length > 0 ? (
+              <FinancePieChart data={pieData} />
+            ) : (
+              <p className="py-2 text-center text-sm font-semibold text-room-muted">
+                Belum ada pengeluaran tercatat pada periode ini.
+              </p>
+            )}
+          </RoomCard>
+        </>
+      )}
 
-      <RoomCard className="mb-4">
-        <RoomCardHeader
-          icon={<PixelCoin size={18} />}
-          title={`Pengeluaran per Kategori · ${new Date(period.year, period.month - 1, 1).toLocaleDateString("id-ID", { month: "long", year: "numeric" })}`}
-          accent="peach"
+      {tab === "wallets" && (
+        <WalletsCard
+          key={wallets.map((wallet) =>
+            [wallet.id, wallet.name, wallet.type, wallet.icon, wallet.color, wallet.balance, wallet.hasReconciliation].join(":"),
+          ).join("|")}
+          wallets={wallets}
+          transactions={transactions.map(({ id, walletId, type, amount, note, date, reconciliationId }) => ({
+            id, walletId, type, amount, note, date, reconciliationId,
+          }))}
         />
-        {pieData.length > 0 ? (
-          <FinancePieChart data={pieData} />
-        ) : (
-          <p className="py-2 text-center text-sm font-semibold text-room-muted">
-            Belum ada pengeluaran tercatat pada periode ini.
-          </p>
-        )}
-      </RoomCard>
+      )}
 
-      <BudgetManagerCard
-        key={`${period.month}-${period.year}`}
-        categories={categories}
-        budgets={budgets}
-        transactions={transactions}
-        month={period.month}
-        year={period.year}
-      />
-
-      <RoomCard>
-        <RoomCardHeader icon={<PixelCoin size={18} />} title="Transaksi" accent="peach" />
-        <TransactionList
+      {tab === "budget" && (
+        <BudgetManagerCard
           key={`${period.month}-${period.year}`}
-          transactions={sorted}
           categories={categories}
-          wallets={wallets.map(({ id, name }) => ({ id, name }))}
+          budgets={budgets}
+          transactions={transactions}
           month={period.month}
           year={period.year}
         />
-      </RoomCard>
+      )}
+
+      {tab === "transactions" && (
+        <RoomCard className="min-w-0">
+          <RoomCardHeader icon={<PixelCoin size={18} />} title="Transaksi" accent="peach" />
+          <TransactionList
+            key={`${period.month}-${period.year}`}
+            transactions={sorted}
+            categories={categories}
+            wallets={wallets.map(({ id, name }) => ({ id, name }))}
+            month={period.month}
+            year={period.year}
+          />
+        </RoomCard>
+      )}
     </RoomShell>
   );
 }

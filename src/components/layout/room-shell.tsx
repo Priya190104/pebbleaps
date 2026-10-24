@@ -26,8 +26,8 @@ export function RoomShell({ children }: RoomShellProps) {
       <Sidebar />
 
       {/* Room canvas — wallpaper class reacts to user selection */}
-      <main className={cn("flex-1 min-h-screen", wallpaperCls)}>
-        <div className="max-w-2xl mx-auto px-4 pt-5 pb-24 lg:pb-8 lg:max-w-none lg:px-8 lg:pt-7">
+      <main className={cn("min-h-screen min-w-0 flex-1", wallpaperCls)}>
+        <div className="mx-auto w-full max-w-2xl min-w-0 px-4 pt-5 pb-24 lg:max-w-none lg:px-8 lg:pt-7 lg:pb-8">
           {children}
         </div>
         <BottomNav />

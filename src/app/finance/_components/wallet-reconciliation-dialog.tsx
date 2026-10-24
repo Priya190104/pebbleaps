@@ -126,7 +126,7 @@ export function WalletReconciliationDialog({
           type="button"
           aria-label={`Rekonsiliasi kantong ${walletName}`}
           title="Rekonsiliasi saldo dengan rekening"
-          className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-bold text-room-text hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-room-text hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
         >
           <Scale size={14} aria-hidden="true" />
           <span className="hidden sm:inline">Rekonsiliasi</span>

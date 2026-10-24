@@ -84,7 +84,7 @@ export default async function GoalsPage() {
                 ) : undefined}
               />
               {g.description && (
-                <p className="text-room-muted text-xs font-medium mb-3">{g.description}</p>
+                <p className="mb-3 wrap-anywhere text-xs font-medium text-room-muted">{g.description}</p>
               )}
               <ProgressBar value={pct} color="mint" />
               <div className="flex justify-between mt-1.5">
@@ -125,7 +125,7 @@ export default async function GoalsPage() {
                     <div className="flex items-center gap-3">
                       <HabitButton goalId={g.id} habitToday={habitToday} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-room-text">{g.title}</p>
+                        <p className="wrap-anywhere text-sm font-bold text-room-text">{g.title}</p>
                         <div className="mt-0.5 flex items-center gap-1">
                           <Flame size={11} className="text-peach-400" />
                           <span className="text-[11px] font-bold text-peach-500">{streak} hari berturut-turut</span>
@@ -202,7 +202,7 @@ export default async function GoalsPage() {
               action={<GoalDeleteButton goalId={g.id} title={g.title} />}
             />
             {g.description && (
-              <p className="text-room-muted text-sm font-medium mb-2">{g.description}</p>
+              <p className="mb-2 wrap-anywhere text-sm font-medium text-room-muted">{g.description}</p>
             )}
             <GoalNotes goalId={g.id} initialNotes={g.notes} />
           </RoomCard>

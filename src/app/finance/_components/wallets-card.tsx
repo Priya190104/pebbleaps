@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/utils";
@@ -8,7 +9,15 @@ import { createWallet, updateWallet, deleteWallet, setWalletBalance } from "@/li
 import { RoomCard, RoomCardHeader } from "@/components/ui/room-card";
 import { WalletReconciliationDialog } from "./wallet-reconciliation-dialog";
 
-type Wallet = { id: string; name: string; type: string; balance: number; icon: string; color: string };
+type Wallet = {
+  id: string;
+  name: string;
+  type: string;
+  balance: number;
+  icon: string;
+  color: string;
+  hasReconciliation: boolean;
+};
 type WalletTransaction = {
   id: string;
   walletId: string | null;
@@ -28,6 +37,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export function WalletsCard({ wallets: initial, transactions }: { wallets: Wallet[]; transactions: WalletTransaction[] }) {
+  const router = useRouter();
   const [wallets, setWallets] = useState(initial);
   const [adjustId, setAdjustId] = useState<string | null>(null);
   const [targetBal, setTargetBal] = useState("");
@@ -38,6 +48,7 @@ export function WalletsCard({ wallets: initial, transactions }: { wallets: Walle
   const [newName, setNewName] = useState("");
   const [newIcon, setNewIcon] = useState("💵");
   const [newType, setNewType] = useState("cash");
+  const [newInitialBalance, setNewInitialBalance] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -53,8 +64,11 @@ export function WalletsCard({ wallets: initial, transactions }: { wallets: Walle
       setWallets((ws) => ws.map((w) => (w.id === wallet.id ? { ...w, balance: target } : w)));
       setAdjustId(null);
       setTargetBal("");
-    } catch {
-      setError("Saldo gagal disesuaikan. Periksa kategori pemasukan/pengeluaran lalu coba lagi.");
+      router.refresh();
+    } catch (caught) {
+      setError(caught instanceof Error && caught.message
+        ? caught.message
+        : "Saldo gagal disesuaikan. Periksa kategori pemasukan/pengeluaran lalu coba lagi.");
     } finally {
       setSaving(false);
     }
@@ -79,14 +93,24 @@ export function WalletsCard({ wallets: initial, transactions }: { wallets: Walle
     setSaving(true);
     setError("");
     try {
-      const w = await createWallet({ name: newName.trim(), icon: newIcon, type: newType });
+      const initialBalance = newInitialBalance.trim() ? Number(newInitialBalance) : 0;
+      const w = await createWallet({
+        name: newName.trim(),
+        icon: newIcon,
+        type: newType,
+        initialBalance,
+      });
       setWallets((ws) => [...ws, w]);
       setShowAdd(false);
       setNewName("");
       setNewIcon("💵");
       setNewType("cash");
-    } catch {
-      setError("Kantong gagal ditambahkan. Periksa isian lalu coba lagi.");
+      setNewInitialBalance("");
+      router.refresh();
+    } catch (caught) {
+      setError(caught instanceof Error && caught.message
+        ? caught.message
+        : "Kantong gagal ditambahkan. Periksa nama, saldo awal, dan kategori pemasukan lalu coba lagi.");
     } finally {
       setSaving(false);
     }
@@ -117,7 +141,7 @@ export function WalletsCard({ wallets: initial, transactions }: { wallets: Walle
             type="button"
             onClick={() => setShowAdd((s) => !s)}
             aria-label={showAdd ? "Tutup tambah kantong" : "Tambah kantong"}
-            className="w-7 h-7 rounded-xl bg-cream-100 flex items-center justify-center text-cream-600 hover:bg-cream-200 transition-colors"
+            className="flex h-11 w-11 items-center justify-center rounded-xl bg-cream-100 text-cream-600 transition-colors hover:bg-cream-200"
           >
             <Plus size={14} strokeWidth={2.5} />
           </button>
@@ -141,7 +165,7 @@ export function WalletsCard({ wallets: initial, transactions }: { wallets: Walle
 
         {wallets.map((wallet) => (
           <div key={wallet.id}>
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-cream-50 border border-room-border group">
+            <div className="group flex flex-wrap items-center gap-3 rounded-xl border border-room-border bg-cream-50 p-3">
               <span className="text-xl w-8 text-center shrink-0">{wallet.icon}</span>
 
               <div className="flex-1 min-w-0">
@@ -173,7 +197,7 @@ export function WalletsCard({ wallets: initial, transactions }: { wallets: Walle
               </div>
 
               {editId !== wallet.id && (
-                <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0">
+                <div className="flex w-full shrink-0 flex-wrap items-center justify-between gap-1.5 sm:w-auto sm:justify-end">
                   <p className="text-sm font-extrabold text-room-text">{formatRupiah(wallet.balance)}</p>
                   <WalletReconciliationDialog
                     walletId={wallet.id}
@@ -181,25 +205,27 @@ export function WalletsCard({ wallets: initial, transactions }: { wallets: Walle
                     transactions={transactions.filter((transaction) => transaction.walletId === wallet.id)}
                   />
                   <div className="flex gap-1 opacity-100 transition-opacity group-focus-within:opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAdjustId(adjustId === wallet.id ? null : wallet.id);
-                        setTargetBal(String(wallet.balance));
-                        setEditId(null);
-                      }}
-                      aria-label={`Set saldo ${wallet.name}`}
-                      title="Set saldo"
-                      className="w-6 h-6 rounded-lg bg-peach-100 text-peach-500 flex items-center justify-center hover:bg-peach-200 transition-colors"
-                    >
-                      <Pencil size={10} />
-                    </button>
+                    {!wallet.hasReconciliation && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAdjustId(adjustId === wallet.id ? null : wallet.id);
+                          setTargetBal(String(wallet.balance));
+                          setEditId(null);
+                        }}
+                        aria-label={`Set saldo ${wallet.name}`}
+                        title="Set saldo sebelum rekonsiliasi"
+                        className="flex h-11 w-11 items-center justify-center rounded-lg bg-peach-100 text-peach-500 transition-colors hover:bg-peach-200"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => { setEditId(wallet.id); setEditName(wallet.name); setEditIcon(wallet.icon); setAdjustId(null); }}
                       aria-label={`Edit kantong ${wallet.name}`}
                       title="Edit nama"
-                      className="w-6 h-6 rounded-lg bg-cream-100 text-room-muted flex items-center justify-center hover:bg-cream-200 transition-colors"
+                      className="flex h-11 w-11 items-center justify-center rounded-lg bg-cream-100 text-room-muted transition-colors hover:bg-cream-200"
                     >
                       <span className="text-[9px] font-bold">Aa</span>
                     </button>
@@ -208,7 +234,7 @@ export function WalletsCard({ wallets: initial, transactions }: { wallets: Walle
                       onClick={() => handleDelete(wallet.id)}
                       aria-label={`Hapus kantong ${wallet.name}`}
                       title="Hapus kantong"
-                      className="w-6 h-6 rounded-lg bg-cream-100 text-room-muted flex items-center justify-center hover:bg-peach-100 hover:text-peach-500 transition-colors"
+                      className="flex h-11 w-11 items-center justify-center rounded-lg bg-cream-100 text-room-muted transition-colors hover:bg-peach-100 hover:text-peach-500"
                     >
                       <Trash2 size={10} />
                     </button>
@@ -221,7 +247,7 @@ export function WalletsCard({ wallets: initial, transactions }: { wallets: Walle
             {adjustId === wallet.id && (
               <div className="mt-1 p-3 bg-white rounded-xl border-2 border-peach-200 space-y-2">
                 <p className="text-[11px] font-bold text-room-muted">
-                  Set saldo baru → akan dibuat transaksi penyesuaian otomatis <span className="text-room-subtle">(balance)</span>
+                  Sesuaikan saldo sebelum rekonsiliasi; perubahan akan tercatat sebagai transaksi.
                 </p>
                 <div className="flex gap-2">
                   <input
@@ -262,6 +288,18 @@ export function WalletsCard({ wallets: initial, transactions }: { wallets: Walle
               className={inputCls}
             />
           </div>
+          <label className="block text-xs font-bold text-room-muted">
+            Saldo awal (Rp)
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={newInitialBalance}
+              onChange={(event) => setNewInitialBalance(event.target.value)}
+              placeholder="0"
+              className={cn(inputCls, "mt-1")}
+            />
+          </label>
           <select
             value={newType}
             onChange={(e) => setNewType(e.target.value)}

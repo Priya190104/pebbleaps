@@ -126,7 +126,7 @@ function TaskSection({ title, tasks, badge, accent, collapsed = false }: {
                 </button>
 
                 <div className="flex-1 min-w-0">
-                  <p className={cn("text-sm font-bold leading-snug", isDone ? "line-through text-room-subtle" : "text-room-text")}>
+                  <p className={cn("wrap-anywhere text-sm font-bold leading-snug", isDone ? "line-through text-room-subtle" : "text-room-text")}>
                     {task.title}
                   </p>
                   <div className="flex flex-wrap items-center gap-1.5 mt-1">
