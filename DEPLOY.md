@@ -466,6 +466,23 @@ Buka browser dan kunjungi `https://yourdomain.com` — pastikan ada ikon gembok 
 
 ## 10. Perintah Maintenance
 
+### Kendalikan Penggunaan Disk
+
+Semua container membatasi log Docker hingga tiga file berukuran maksimal 10 MB per file. Pengaturan ini diterapkan saat container dibuat ulang; setelah mengubah konfigurasi, jalankan `docker compose up -d` dari folder deploy.
+
+Untuk memeriksa dan membersihkan image tanpa tag serta cache build yang tidak dipakai:
+
+```bash
+docker system df -v
+docker image prune -f
+docker builder prune -af
+df -h /
+```
+
+`docker image prune -f` hanya menghapus image dangling yang tidak digunakan container. `docker builder prune -af` menghapus cache build dan dapat membuat build lokal berikutnya lebih lama. Jangan gunakan `docker volume prune` atau `docker compose down -v` untuk cleanup rutin karena dapat menghapus data PostgreSQL.
+
+Backup database yang disimpan di disk VPS juga memakai ruang yang sama. Pindahkan backup ke penyimpanan terpisah dan hapus salinan lokal hanya setelah salinan lain berhasil diverifikasi.
+
 ### Restart Service
 
 ```bash
@@ -499,6 +516,8 @@ docker compose exec db pg_dump -U pebble pebble > backup_$(date +%Y%m%d_%H%M%S).
 # Restore dari backup
 docker compose exec -T db psql -U pebble pebble < backup_20260812_120000.sql
 ```
+
+Simpan backup di luar disk VPS atau terapkan retensi yang jelas; file backup lokal yang dibiarkan menumpuk dapat memenuhi disk.
 
 ### Lihat Penggunaan Resource
 

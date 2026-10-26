@@ -1,7 +1,14 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   app:
     image: ${PEBBLE_IMAGE:-ghcr.io/priya190104/pebbleaps:app}
     restart: unless-stopped
+    logging: *default-logging
     environment:
       DATABASE_URL: postgresql://pebble:${POSTGRES_PASSWORD:-pebble}@db:5432/pebble?schema=public
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
@@ -22,6 +29,7 @@ services:
   migrate:
     image: ${PEBBLE_MIGRATOR_IMAGE:-ghcr.io/priya190104/pebbleaps:migrate}
     restart: "no"
+    logging: *default-logging
     environment:
       DATABASE_URL: postgresql://pebble:${POSTGRES_PASSWORD:-pebble}@db:5432/pebble?schema=public
     depends_on:
@@ -31,6 +39,7 @@ services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *default-logging
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
@@ -46,6 +55,7 @@ services:
   nginx:
     image: nginx:alpine
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "80:80"
       - "443:443"

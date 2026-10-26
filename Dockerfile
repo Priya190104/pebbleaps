@@ -13,9 +13,17 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npx prisma generate
 RUN npm run build
 
-FROM deps AS migrator
+FROM node:20-alpine AS migrator-deps
+WORKDIR /opt/prisma
+COPY package-lock.json /tmp/package-lock.json
+RUN PRISMA_VERSION="$(node -p "require('/tmp/package-lock.json').packages['node_modules/prisma'].version")" \
+  && DOTENV_VERSION="$(node -p "require('/tmp/package-lock.json').packages['node_modules/dotenv'].version")" \
+  && npm install --no-save --package-lock=false "prisma@${PRISMA_VERSION}" "dotenv@${DOTENV_VERSION}"
+
+FROM node:20-alpine AS migrator
 WORKDIR /app
 ENV NODE_ENV=production
+COPY --from=migrator-deps /opt/prisma/node_modules ./node_modules
 COPY prisma ./prisma
 COPY prisma.config.ts ./
 CMD ["./node_modules/.bin/prisma", "migrate", "deploy"]
