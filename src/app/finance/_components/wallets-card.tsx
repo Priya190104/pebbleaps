@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/utils";
 import { createWallet, updateWallet, deleteWallet, setWalletBalance } from "@/lib/actions/finance";
 import { RoomCard, RoomCardHeader } from "@/components/ui/room-card";
+import { EmojiPicker } from "@/components/ui/emoji-picker";
 import { WalletReconciliationDialog } from "./wallet-reconciliation-dialog";
 
 type Wallet = {
@@ -170,23 +171,32 @@ export function WalletsCard({ wallets: initial, transactions }: { wallets: Walle
 
               <div className="flex-1 min-w-0">
                 {editId === wallet.id ? (
-                  <div className="flex gap-2 items-center">
-                    <input
-                      value={editIcon}
-                      onChange={(e) => setEditIcon(e.target.value)}
-                      className="w-10 text-center border-2 rounded-lg border-room-border p-1 text-sm bg-white"
-                    />
+                  <div className="space-y-2">
                     <input
                       value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="flex-1 border-2 rounded-lg border-room-border px-2 py-1 text-sm font-bold text-room-text bg-white focus:outline-none focus:border-cream-400"
+                      onChange={(event) => setEditName(event.target.value)}
+                      aria-label="Nama kantong"
+                      maxLength={80}
+                      className="w-full rounded-lg border-2 border-room-border bg-white px-2 py-2 text-sm font-bold text-room-text focus:border-cream-400 focus:outline-none"
                     />
-                    <button onClick={() => saveEdit(wallet.id)} className="text-mint-500 hover:text-mint-600">
-                      <Check size={14} />
-                    </button>
-                    <button onClick={() => setEditId(null)} className="text-room-muted hover:text-room-text">
-                      <X size={14} />
-                    </button>
+                    <EmojiPicker value={editIcon} onChange={setEditIcon} label="Pilih emoji kantong" />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => saveEdit(wallet.id)}
+                        disabled={saving || !editName.trim()}
+                        className="flex min-h-10 items-center gap-1.5 rounded-lg bg-mint-100 px-3 text-xs font-bold text-mint-600 hover:bg-mint-200 disabled:opacity-50"
+                      >
+                        <Check size={14} /> Simpan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditId(null)}
+                        className="flex min-h-10 items-center gap-1.5 rounded-lg bg-white px-3 text-xs font-bold text-room-muted hover:bg-cream-100"
+                      >
+                        <X size={14} /> Batal
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <>
@@ -275,18 +285,14 @@ export function WalletsCard({ wallets: initial, transactions }: { wallets: Walle
       {/* Add wallet form */}
       {showAdd && (
         <div className="mt-3 p-3 bg-cream-50 rounded-xl border-2 border-cream-200 space-y-2">
-          <div className="flex gap-2">
-            <input
-              value={newIcon}
-              onChange={(e) => setNewIcon(e.target.value)}
-              className="w-12 text-center border-2 rounded-xl border-room-border p-2 text-lg bg-white"
-            />
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Nama kantong"
               className={inputCls}
             />
+            <EmojiPicker value={newIcon} onChange={setNewIcon} label="Pilih emoji kantong" />
           </div>
           <label className="block text-xs font-bold text-room-muted">
             Saldo awal (Rp)

@@ -6,7 +6,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   getLocalCalendarDayRange,
-  getLocalCalendarMonthRange,
   ValidationError,
   validateTransactionInput,
   validateWalletBalance,
@@ -219,20 +218,6 @@ export async function deleteBudget(categoryId: string, month: number, year: numb
   if (typeof categoryId !== "string" || !categoryId.trim()) throw new ValidationError("Kategori anggaran tidak valid");
   const period = validateBudgetPeriod(month, year);
   await requireOwnedCategory(userId, categoryId, "keluar");
-  const existing = await prisma.budget.findFirst({
-    where: {
-      userId,
-      categoryId,
-      month: period.month,
-      year: period.year,
-      category: { isSavings: true },
-      rolloverAmount: { gt: 0 },
-    },
-    select: { id: true },
-  });
-  if (existing) {
-    throw new ValidationError("Saldo Tabungan yang terkumpul tidak dapat dihapus dari anggaran bulan ini");
-  }
   await prisma.budget.deleteMany({
     where: { userId, categoryId, month: period.month, year: period.year },
   });
@@ -254,7 +239,7 @@ export async function copyPreviousMonthBudgets(month: number, year: number) {
         month: sourceMonth,
         year: sourceYear,
         amount: { gt: 0 },
-        category: { userId, forIncome: false, isActive: true, isSavings: false },
+        category: { userId, forIncome: false, isActive: true },
       },
       select: { categoryId: true, amount: true },
     });
@@ -274,127 +259,6 @@ export async function copyPreviousMonthBudgets(month: number, year: number) {
 
   revalidatePath("/finance");
   return count;
-}
-
-export async function rolloverBudgets(
-  sourceMonth: number,
-  sourceYear: number,
-  monthStartTimezoneOffsetMinutes: number,
-  nextMonthStartTimezoneOffsetMinutes: number,
-) {
-  const userId = await requireUser();
-  const source = validateBudgetPeriod(sourceMonth, sourceYear);
-  const targetDate = new Date(Date.UTC(source.year, source.month, 1));
-  const target = validateBudgetPeriod(targetDate.getUTCMonth() + 1, targetDate.getUTCFullYear());
-  const { start, end } = getLocalCalendarMonthRange(
-    source.month,
-    source.year,
-    monthStartTimezoneOffsetMinutes,
-    nextMonthStartTimezoneOffsetMinutes,
-  );
-
-  const carriedCount = await prisma.$transaction(async (tx) => {
-    const [savingsCategory, sourceBudgets, actualExpenses] = await Promise.all([
-      tx.category.findFirst({
-        where: { userId, isSavings: true, forIncome: false, isActive: true },
-        select: { id: true },
-      }),
-      tx.budget.findMany({
-        where: {
-          userId,
-          month: source.month,
-          year: source.year,
-          category: { userId, forIncome: false },
-        },
-        select: {
-          categoryId: true,
-          amount: true,
-          rolloverAmount: true,
-          category: { select: { isSavings: true } },
-        },
-      }),
-      tx.transaction.groupBy({
-        by: ["categoryId"],
-        where: {
-          userId,
-          type: "keluar",
-          date: { gte: start, lt: end },
-        },
-        _sum: { amount: true },
-      }),
-    ]);
-    if (!savingsCategory) {
-      throw new Error("Kategori Tabungan belum tersedia. Migrasikan database lalu muat ulang aplikasi.");
-    }
-    const spentByCategory = new Map(
-      actualExpenses.map((expense) => [expense.categoryId, expense._sum.amount ?? 0]),
-    );
-    let positiveRemainders = 0;
-    let savingsRemainder = 0;
-
-    for (const budget of sourceBudgets) {
-      const available = budget.amount + budget.rolloverAmount;
-      const spent = spentByCategory.get(budget.categoryId) ?? 0;
-      const remainder = Math.max(available - spent, 0);
-      if (!Number.isSafeInteger(remainder)) {
-        throw new ValidationError("Sisa anggaran melebihi batas perhitungan");
-      }
-      if (budget.category.isSavings) {
-        savingsRemainder = remainder;
-      } else {
-        positiveRemainders += remainder;
-      }
-    }
-    const savingsRollover = savingsRemainder + positiveRemainders;
-    if (!Number.isSafeInteger(savingsRollover) || savingsRollover > 2_147_483_647) {
-      throw new ValidationError("Sisa anggaran gabungan melebihi batas yang dapat disimpan");
-    }
-
-    await tx.budget.updateMany({
-      where: {
-        userId,
-        month: target.month,
-        year: target.year,
-        category: { userId, isSavings: false },
-      },
-      data: { rolloverAmount: 0 },
-    });
-    if (savingsRollover > 0) {
-      await tx.budget.upsert({
-        where: {
-          userId_categoryId_month_year: {
-            userId,
-            categoryId: savingsCategory.id,
-            month: target.month,
-            year: target.year,
-          },
-        },
-        update: { rolloverAmount: savingsRollover },
-        create: {
-          userId,
-          categoryId: savingsCategory.id,
-          amount: 0,
-          rolloverAmount: savingsRollover,
-          month: target.month,
-          year: target.year,
-        },
-      });
-    } else {
-      await tx.budget.updateMany({
-        where: {
-          userId,
-          categoryId: savingsCategory.id,
-          month: target.month,
-          year: target.year,
-        },
-        data: { rolloverAmount: 0 },
-      });
-    }
-    return savingsRollover > 0 ? 1 : 0;
-  }, { isolationLevel: "Serializable" });
-
-  revalidatePath("/finance");
-  return carriedCount;
 }
 
 // ── Wallet ──────────────────────────────────────────────────────────────────
@@ -653,15 +517,9 @@ export async function updateCategory(id: string, data: { name?: string; icon?: s
   const normalized = validateCategoryInput(data, false);
   const existing = await prisma.category.findFirst({
     where: { id, userId, isActive: true },
-    select: { forIncome: true, isSavings: true },
+    select: { forIncome: true },
   });
   if (!existing) throw new Error("Kategori tidak ditemukan");
-  if (existing.isSavings && normalized.name && normalized.name.toLocaleLowerCase("id-ID") !== "tabungan") {
-    throw new ValidationError("Nama kategori penampung harus tetap Tabungan");
-  }
-  if (existing.isSavings && normalized.forIncome) {
-    throw new ValidationError("Kategori Tabungan harus tetap menjadi kategori pengeluaran");
-  }
   if (normalized.forIncome !== undefined && existing.forIncome !== normalized.forIncome) {
     const transactionCount = await prisma.transaction.count({ where: { categoryId: id, userId } });
     if (transactionCount) throw new ValidationError("Jenis kategori tidak dapat diubah karena sudah dipakai transaksi");
@@ -686,12 +544,9 @@ export async function deleteCategory(id: string) {
   if (typeof id !== "string" || !id.trim()) throw new ValidationError("Kategori tidak valid");
   const category = await prisma.category.findFirst({
     where: { id, userId, isActive: true },
-    select: { isSavings: true },
+    select: { id: true },
   });
   if (!category) throw new Error("Kategori tidak ditemukan");
-  if (category.isSavings) {
-    throw new ValidationError("Kategori Tabungan tidak dapat dihapus karena menampung sisa anggaran");
-  }
   const archived = await prisma.category.updateMany({
     where: { id, userId, isActive: true },
     data: { isActive: false },

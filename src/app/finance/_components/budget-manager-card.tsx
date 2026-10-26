@@ -1,14 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, Copy, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, Copy, Pencil, Plus, Trash2, X } from "lucide-react";
 import { cn, formatRupiah } from "@/lib/utils";
 import {
   copyPreviousMonthBudgets,
   deleteBudget,
-  rolloverBudgets,
   upsertBudget,
 } from "@/lib/actions/finance";
 import { RoomCard, RoomCardHeader, ProgressBar } from "@/components/ui/room-card";
@@ -20,7 +18,6 @@ type Category = {
   icon: string;
   forIncome: boolean;
   isActive: boolean;
-  isSavings: boolean;
 };
 type Budget = { id: string; categoryId: string; amount: number; rolloverAmount: number; month: number; year: number };
 type Tx = { type: string; amount: number; categoryId: string; date: Date | string };
@@ -31,10 +28,6 @@ interface BudgetManagerCardProps {
   transactions: Tx[];
   month: number;
   year: number;
-}
-
-function periodHref(month: number, year: number) {
-  return `/finance?tab=budget&month=${month}&year=${year}`;
 }
 
 function adjacentPeriod(month: number, year: number, direction: -1 | 1) {
@@ -83,9 +76,7 @@ export function BudgetManagerCard({ categories, budgets, transactions, month, ye
   const withoutBudget = expenseCategories.filter((category) => category.isActive && !budgetMap[category.id]);
   const periodLabel = new Date(year, month - 1, 1).toLocaleDateString("id-ID", { month: "long", year: "numeric" });
   const previous = adjacentPeriod(month, year, -1);
-  const next = adjacentPeriod(month, year, 1);
   const cannotGoPrevious = previous.year < 2000;
-  const cannotGoNext = next.year > 9999;
 
   const clearFeedback = () => {
     setMessage("");
@@ -149,32 +140,6 @@ export function BudgetManagerCard({ categories, budgets, transactions, month, ye
     }
   };
 
-  const carryRollover = async () => {
-    if (cannotGoNext) return;
-    const nextLabel = new Date(next.year, next.month - 1, 1).toLocaleDateString("id-ID", { month: "long", year: "numeric" });
-    if (!window.confirm(`Kumpulkan sisa positif kategori dari ${periodLabel} ke Tabungan untuk ${nextLabel}?`)) return;
-    setBusy("rollover");
-    clearFeedback();
-    try {
-      const monthStart = new Date(year, month - 1, 1);
-      const nextMonthStart = new Date(year, month, 1);
-      const carried = await rolloverBudgets(
-        month,
-        year,
-        monthStart.getTimezoneOffset(),
-        nextMonthStart.getTimezoneOffset(),
-      );
-      setMessage(carried === 0
-        ? "Tidak ada sisa anggaran positif yang perlu ditambahkan ke Tabungan."
-        : `Sisa positif kategori berhasil dikumpulkan ke Tabungan untuk ${nextLabel}.`);
-      router.refresh();
-    } catch {
-      setError("Sisa anggaran belum berhasil dibawa. Coba lagi.");
-    } finally {
-      setBusy("");
-    }
-  };
-
   const inputClass =
     "min-w-0 flex-1 rounded-xl border-2 border-room-border bg-cream-50 px-3 py-2 text-sm font-bold text-room-text focus:border-cream-400 focus:outline-none focus:ring-2 focus:ring-cream-200";
 
@@ -182,37 +147,8 @@ export function BudgetManagerCard({ categories, budgets, transactions, month, ye
     <RoomCard className="mb-4">
       <RoomCardHeader
         icon={<PixelCoin size={18} />}
-        title="Anggaran Bulanan"
+        title={`Anggaran Bulanan · ${periodLabel}`}
         accent="cream"
-        action={
-          <div className="flex items-center gap-1">
-            <Link
-              href={periodHref(cannotGoPrevious ? month : previous.month, cannotGoPrevious ? year : previous.year)}
-              aria-label="Lihat anggaran bulan sebelumnya"
-              aria-disabled={cannotGoPrevious}
-              tabIndex={cannotGoPrevious ? -1 : undefined}
-              className={cn(
-                "flex h-8 w-8 items-center justify-center rounded-lg text-room-muted hover:bg-cream-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400",
-                cannotGoPrevious && "pointer-events-none opacity-40",
-              )}
-            >
-              <ArrowLeft size={16} aria-hidden="true" />
-            </Link>
-            <span className="min-w-28 text-center text-xs font-extrabold capitalize text-room-text">{periodLabel}</span>
-            <Link
-              href={periodHref(cannotGoNext ? month : next.month, cannotGoNext ? year : next.year)}
-              aria-label="Lihat anggaran bulan berikutnya"
-              aria-disabled={cannotGoNext}
-              tabIndex={cannotGoNext ? -1 : undefined}
-              className={cn(
-                "flex h-8 w-8 items-center justify-center rounded-lg text-room-muted hover:bg-cream-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400",
-                cannotGoNext && "pointer-events-none opacity-40",
-              )}
-            >
-              <ArrowRight size={16} aria-hidden="true" />
-            </Link>
-          </div>
-        }
       />
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -224,15 +160,6 @@ export function BudgetManagerCard({ categories, budgets, transactions, month, ye
         >
           <Copy size={13} aria-hidden="true" />
           {busy === "copy" ? "Menyalin..." : "Salin anggaran bulan lalu"}
-        </button>
-        <button
-          type="button"
-          onClick={() => void carryRollover()}
-          disabled={Boolean(busy) || cannotGoNext}
-          className="inline-flex min-h-9 items-center gap-2 rounded-full border-2 border-mint-200 bg-mint-50 px-3 py-1.5 text-xs font-extrabold text-room-text hover:bg-mint-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint-400 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <ArrowRight size={13} aria-hidden="true" />
-          {busy === "rollover" ? "Mengumpulkan sisa..." : "Kumpulkan sisa ke Tabungan"}
         </button>
       </div>
 
@@ -316,18 +243,16 @@ export function BudgetManagerCard({ categories, budgets, transactions, month, ye
                         >
                           <Pencil size={13} />
                         </button>
-                        {!(category.isSavings && budget.rolloverAmount > 0) && (
-                          <button
-                            type="button"
-                            onClick={() => void removeBudget(category.id)}
-                            disabled={Boolean(busy)}
-                            aria-label={`Hapus anggaran ${category.name}`}
-                            title="Hapus anggaran"
-                            className="flex h-8 w-8 items-center justify-center rounded-lg bg-cream-100 text-room-muted hover:bg-peach-100 hover:text-room-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-peach-400 disabled:opacity-50"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => void removeBudget(category.id)}
+                          disabled={Boolean(busy)}
+                          aria-label={`Hapus anggaran ${category.name}`}
+                          title="Hapus anggaran"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-cream-100 text-room-muted hover:bg-peach-100 hover:text-room-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-peach-400 disabled:opacity-50"
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       </div>
                     )}
                   </div>
@@ -362,11 +287,6 @@ export function BudgetManagerCard({ categories, budgets, transactions, month, ye
                 >
                   <span aria-hidden="true">{category.icon}</span>
                   {category.name}
-                  {category.isSavings && (
-                    <span className="shrink-0 rounded-full bg-mint-50 px-2 py-0.5 text-[10px] text-room-muted">
-                      Penampung sisa
-                    </span>
-                  )}
                   <Plus size={12} aria-hidden="true" />
                 </button>
               ))}

@@ -23,22 +23,14 @@ type Transaction = {
 const controlClass =
   "w-full rounded-xl border-2 border-room-border bg-cream-50 px-3 py-2 text-sm font-semibold text-room-text focus:border-cream-400 focus:outline-none focus:ring-2 focus:ring-cream-200";
 
-function monthValue(year: number, month: number) {
-  return `${year}-${String(month).padStart(2, "0")}`;
-}
-
 export function TransactionList({
   transactions,
   categories,
   wallets,
-  month,
-  year,
 }: {
   transactions: Transaction[];
   categories: Category[];
   wallets: Wallet[];
-  month: number;
-  year: number;
 }) {
   const [deleted, setDeleted] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
@@ -46,7 +38,6 @@ export function TransactionList({
   const [typeFilter, setTypeFilter] = useState("semua");
   const [categoryFilter, setCategoryFilter] = useState("semua");
   const [walletFilter, setWalletFilter] = useState("semua");
-  const [monthFilter, setMonthFilter] = useState(monthValue(year, month));
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Hapus transaksi ini?")) return;
@@ -73,23 +64,18 @@ export function TransactionList({
       if (categoryFilter !== "semua" && transaction.categoryId !== categoryFilter) return false;
       if (walletFilter === "tanpa-kantong" && transaction.walletId !== null) return false;
       if (walletFilter !== "semua" && walletFilter !== "tanpa-kantong" && transaction.walletId !== walletFilter) return false;
-      if (monthFilter) {
-        const date = new Date(transaction.date);
-        if (Number.isNaN(date.getTime()) || monthValue(date.getFullYear(), date.getMonth() + 1) !== monthFilter) return false;
-      }
       return true;
     });
-  }, [transactions, deleted, noteSearch, typeFilter, categoryFilter, walletFilter, monthFilter]);
+  }, [transactions, deleted, noteSearch, typeFilter, categoryFilter, walletFilter]);
 
   const resetFilters = () => {
     setNoteSearch("");
     setTypeFilter("semua");
     setCategoryFilter("semua");
     setWalletFilter("semua");
-    setMonthFilter(monthValue(year, month));
   };
   const filtersChanged = noteSearch !== "" || typeFilter !== "semua" ||
-    categoryFilter !== "semua" || walletFilter !== "semua" || monthFilter !== monthValue(year, month);
+    categoryFilter !== "semua" || walletFilter !== "semua";
 
   return (
     <>
@@ -101,15 +87,6 @@ export function TransactionList({
             value={noteSearch}
             onChange={(event) => setNoteSearch(event.target.value)}
             placeholder="Contoh: makan siang"
-            className={`${controlClass} mt-1`}
-          />
-        </label>
-        <label className="text-xs font-bold text-room-muted">
-          Bulan
-          <input
-            type="month"
-            value={monthFilter}
-            onChange={(event) => setMonthFilter(event.target.value)}
             className={`${controlClass} mt-1`}
           />
         </label>

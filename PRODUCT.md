@@ -45,12 +45,12 @@ The "pebble" metaphor: small, consistent daily actions that create lasting rippl
 
 **Pencatatan Keuangan (Finance)**
 - Record income and expense transactions with category and date
-- User-defined categories per account
+- User-defined income and expense categories per account; categories are ordinary items and can use a selected emoji
 - Search and filter transactions by note, month, type, category, and wallet
-- Monthly budgets with historical month navigation and over-budget alerts
-- Tabungan is a default, protected expense category; manually collect positive unspent amounts from other budget categories into Tabungan for the next month, without carrying overspending
+- Monthly budgets with historical month navigation and over-budget alerts; previously recorded rollover amounts remain part of historical budget data
 - Reconcile wallet transactions against a dated statement balance; reconciled transactions are locked against edits and deletion
-- Dashboard: running balance, expense-by-category chart, monthly trend chart (Recharts)
+- Finance summary period filter applies to the balance, income/expense totals, trend, expense-by-category chart, and transaction list: one date or an unrestricted date range, a Monday–Sunday week, a month, or a year
+- Dashboard: running balance, expense-by-category chart, financial trend chart (Recharts)
 
 **Penetapan Goal (Goal Setting)**
 - Four goal types: numeric target (e.g., save Rp 5 million), daily habit, milestone with sub-deadlines, open-ended progress log

@@ -9,7 +9,6 @@ const DEFAULT_CATEGORIES = [
   { name: "Belanja", color: "#F5D9A8", icon: "🛍️", forIncome: false },
   { name: "Hiburan", color: "#B8EDD3", icon: "🎮", forIncome: false },
   { name: "Kesehatan", color: "#FFD9C4", icon: "💊", forIncome: false },
-  { name: "Tabungan", color: "#D4F5E5", icon: "🏦", forIncome: false },
   { name: "Pendapatan", color: "#8ADAB5", icon: "💰", forIncome: true },
   { name: "Gaji", color: "#D4F5E5", icon: "💼", forIncome: true },
 ];
@@ -45,7 +44,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             ...c,
             userId: user.id!,
             isDefault: true,
-            isSavings: c.name === "Tabungan",
           })),
         }),
         prisma.roomSettings.create({
