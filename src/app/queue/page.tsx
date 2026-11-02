@@ -3,6 +3,7 @@ import { getTaskCompletionEvents, getTasks } from "@/lib/actions/tasks";
 import { QueueTaskList } from "./_components/queue-task-list";
 import { QueueAnalytics } from "./_components/queue-analytics";
 import { PageFab } from "@/app/_components/page-fab";
+import { ActivityTracker } from "@/app/_components/activity-tracker";
 
 type TaskItem = Awaited<ReturnType<typeof getTasks>>[number];
 
@@ -14,6 +15,7 @@ export default async function QueuePage() {
 
   return (
     <RoomShell>
+      <ActivityTracker feature="queue" />
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-room-text text-xl font-extrabold">Queue Kegiatan</h1>

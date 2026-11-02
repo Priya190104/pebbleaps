@@ -8,7 +8,7 @@ import { formatRupiah } from "@/lib/utils";
 import { createWallet, updateWallet, deleteWallet, setWalletBalance } from "@/lib/actions/finance";
 import { RoomCard, RoomCardHeader } from "@/components/ui/room-card";
 import { EmojiPicker } from "@/components/ui/emoji-picker";
-import { WalletReconciliationDialog } from "./wallet-reconciliation-dialog";
+import { WalletTransferPanel } from "./wallet-transfer-panel";
 
 type Wallet = {
   id: string;
@@ -17,16 +17,6 @@ type Wallet = {
   balance: number;
   icon: string;
   color: string;
-  hasReconciliation: boolean;
-};
-type WalletTransaction = {
-  id: string;
-  walletId: string | null;
-  type: string;
-  amount: number;
-  note: string;
-  date: Date | string;
-  reconciliationId: string | null;
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -37,7 +27,20 @@ const TYPE_LABELS: Record<string, string> = {
   other: "Lainnya",
 };
 
-export function WalletsCard({ wallets: initial, transactions }: { wallets: Wallet[]; transactions: WalletTransaction[] }) {
+export function WalletsCard({
+  wallets: initial,
+  transfers,
+}: {
+  wallets: Wallet[];
+  transfers: {
+    id: string;
+    amount: number;
+    note: string;
+    date: Date | string;
+    fromWallet: { id: string; name: string; icon: string };
+    toWallet: { id: string; name: string; icon: string };
+  }[];
+}) {
   const router = useRouter();
   const [wallets, setWallets] = useState(initial);
   const [adjustId, setAdjustId] = useState<string | null>(null);
@@ -123,8 +126,8 @@ export function WalletsCard({ wallets: initial, transactions }: { wallets: Walle
     try {
       await deleteWallet(id);
       setWallets((ws) => ws.filter((w) => w.id !== id));
-    } catch {
-      setError("Kantong gagal dihapus. Coba lagi.");
+    } catch (caught) {
+      setError(caught instanceof Error && caught.message ? caught.message : "Kantong gagal dihapus. Coba lagi.");
     }
   };
 
@@ -209,27 +212,20 @@ export function WalletsCard({ wallets: initial, transactions }: { wallets: Walle
               {editId !== wallet.id && (
                 <div className="flex w-full shrink-0 flex-wrap items-center justify-between gap-1.5 sm:w-auto sm:justify-end">
                   <p className="text-sm font-extrabold text-room-text">{formatRupiah(wallet.balance)}</p>
-                  <WalletReconciliationDialog
-                    walletId={wallet.id}
-                    walletName={wallet.name}
-                    transactions={transactions.filter((transaction) => transaction.walletId === wallet.id)}
-                  />
                   <div className="flex gap-1 opacity-100 transition-opacity group-focus-within:opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
-                    {!wallet.hasReconciliation && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAdjustId(adjustId === wallet.id ? null : wallet.id);
-                          setTargetBal(String(wallet.balance));
-                          setEditId(null);
-                        }}
-                        aria-label={`Set saldo ${wallet.name}`}
-                        title="Set saldo sebelum rekonsiliasi"
-                        className="flex h-11 w-11 items-center justify-center rounded-lg bg-peach-100 text-peach-500 transition-colors hover:bg-peach-200"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAdjustId(adjustId === wallet.id ? null : wallet.id);
+                        setTargetBal(String(wallet.balance));
+                        setEditId(null);
+                      }}
+                      aria-label={`Sesuaikan saldo ${wallet.name}`}
+                      title="Sesuaikan saldo"
+                      className="flex h-11 w-11 items-center justify-center rounded-lg bg-peach-100 text-peach-500 transition-colors hover:bg-peach-200"
+                    >
+                      <Pencil size={14} />
+                    </button>
                     <button
                       type="button"
                       onClick={() => { setEditId(wallet.id); setEditName(wallet.name); setEditIcon(wallet.icon); setAdjustId(null); }}
@@ -257,7 +253,7 @@ export function WalletsCard({ wallets: initial, transactions }: { wallets: Walle
             {adjustId === wallet.id && (
               <div className="mt-1 p-3 bg-white rounded-xl border-2 border-peach-200 space-y-2">
                 <p className="text-[11px] font-bold text-room-muted">
-                  Sesuaikan saldo sebelum rekonsiliasi; perubahan akan tercatat sebagai transaksi.
+                  Perubahan saldo akan tercatat sebagai transaksi penyesuaian.
                 </p>
                 <div className="flex gap-2">
                   <input
@@ -334,6 +330,7 @@ export function WalletsCard({ wallets: initial, transactions }: { wallets: Walle
           </div>
         </div>
       )}
+      <WalletTransferPanel wallets={wallets} transfers={transfers} />
     </RoomCard>
   );
 }

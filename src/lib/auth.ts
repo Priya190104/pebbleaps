@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
+import { analyticsCalendarDate } from "@/lib/analytics-date";
 
 const DEFAULT_CATEGORIES = [
   { name: "Makanan", color: "#F5C4A8", icon: "🍱", forIncome: false },
@@ -36,6 +37,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
   },
   events: {
+    async signIn({ user }) {
+      if (!user.id) {
+        console.error("Could not record successful login because the user ID is missing");
+        return;
+      }
+      try {
+        await prisma.loginEvent.create({
+          data: {
+            userId: user.id,
+            loginDate: analyticsCalendarDate(new Date()),
+          },
+        });
+      } catch (error) {
+        console.error("Failed to record successful login", { userId: user.id, error });
+      }
+    },
     async createUser({ user }) {
       // Seed default categories + room settings on first login
       await Promise.all([

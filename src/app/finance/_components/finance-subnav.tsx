@@ -5,7 +5,7 @@ const tabs = [
   { id: "summary", label: "Ringkasan" },
   { id: "transactions", label: "Transaksi" },
   { id: "budget", label: "Anggaran" },
-  { id: "wallets", label: "Kantong & Rekonsiliasi" },
+  { id: "wallets", label: "Kantong & Transfer" },
   { id: "categories", label: "Kategori" },
 ] as const;
 

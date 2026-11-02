@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { formatRupiah } from "@/lib/utils";
-import { LockKeyhole, RotateCcw, Trash2 } from "lucide-react";
+import { RotateCcw, Trash2 } from "lucide-react";
 import { deleteTransaction } from "@/lib/actions/finance";
 import { TransactionEditDialog } from "./transaction-edit-dialog";
 
@@ -16,7 +16,6 @@ type Transaction = {
   categoryId: string;
   walletId: string | null;
   date: Date | string;
-  reconciliationId: string | null;
   category: { id: string; name: string; icon: string; forIncome: boolean; isActive: boolean };
 };
 
@@ -154,7 +153,6 @@ export function TransactionList({
           </p>
           <ul className="divide-y divide-room-border">
             {visible.map((transaction) => {
-              const reconciled = Boolean(transaction.reconciliationId);
               return (
                 <li key={transaction.id} className="group flex items-center gap-3 py-3 first:pt-0 last:pb-0">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cream-50 text-base">
@@ -164,41 +162,27 @@ export function TransactionList({
                     <p className="truncate text-sm font-bold text-room-text">{transaction.note}</p>
                     <p className="text-[11px] font-medium text-room-muted">
                       {transaction.category.name} · {new Date(transaction.date).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
-                      {reconciled && (
-                        <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-sky-50 px-1.5 py-0.5 font-bold text-room-text">
-                          <LockKeyhole size={10} aria-hidden="true" /> Terekonsiliasi
-                        </span>
-                      )}
                     </p>
                   </div>
                   <span className={`shrink-0 text-sm font-extrabold ${transaction.type === "masuk" ? "text-mint-500" : "text-peach-500"}`}>
                     {transaction.type === "masuk" ? "+" : "−"}{formatRupiah(transaction.amount)}
                   </span>
-                  {reconciled ? (
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center text-room-text" title="Transaksi terkunci setelah rekonsiliasi">
-                      <LockKeyhole size={14} aria-hidden="true" />
-                      <span className="sr-only">Transaksi terkunci setelah rekonsiliasi</span>
-                    </span>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => void handleDelete(transaction.id)}
-                        aria-label={`Hapus transaksi ${transaction.note}`}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-room-subtle hover:bg-peach-50 hover:text-peach-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400"
-                        title="Hapus transaksi"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                      <TransactionEditDialog
-                        transaction={transaction}
-                        categories={transaction.category.isActive
-                          ? categories.filter((category) => category.isActive)
-                          : [...categories.filter((category) => category.isActive), transaction.category]}
-                        wallets={wallets}
-                      />
-                    </>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete(transaction.id)}
+                    aria-label={`Hapus transaksi ${transaction.note}`}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-room-subtle hover:bg-peach-50 hover:text-peach-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400"
+                    title="Hapus transaksi"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                  <TransactionEditDialog
+                    transaction={transaction}
+                    categories={transaction.category.isActive
+                      ? categories.filter((category) => category.isActive)
+                      : [...categories.filter((category) => category.isActive), transaction.category]}
+                    wallets={wallets}
+                  />
                 </li>
               );
             })}

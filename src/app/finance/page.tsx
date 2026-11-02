@@ -12,6 +12,7 @@ import { BudgetManagerCard } from "./_components/budget-manager-card";
 import { FinanceMonthlyTrend } from "./_components/finance-monthly-trend";
 import { FinanceSubnav, type FinanceTab } from "./_components/finance-subnav";
 import { financeFilterQuery, resolveFinanceFilter } from "./_components/finance-period";
+import { ActivityTracker } from "@/app/_components/activity-tracker";
 
 type FinanceData = Awaited<ReturnType<typeof getFinanceData>>;
 type Tx = FinanceData["transactions"][number];
@@ -49,7 +50,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Sear
     params.tab === "categories"
       ? params.tab
       : "summary";
-  const { transactions, categories, budgets, wallets }: FinanceData = await getFinanceData();
+  const { transactions, categories, budgets, wallets, transfers }: FinanceData = await getFinanceData();
 
   const filteredTransactions = transactions.filter((transaction: Tx) => {
     const time = new Date(transaction.date).getTime();
@@ -79,6 +80,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Sear
 
   return (
     <RoomShell>
+      <ActivityTracker feature="finance" />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-room-text text-xl font-extrabold">Keuangan</h1>
@@ -86,7 +88,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Sear
             {tab === "summary" && "Pantau keuanganmu"}
             {tab === "transactions" && "Catat dan telusuri transaksi"}
             {tab === "budget" && "Atur batas pengeluaran"}
-            {tab === "wallets" && "Kelola saldo dan rekonsiliasi"}
+            {tab === "wallets" && "Kelola kantong dan pindahkan saldo"}
             {tab === "categories" && "Atur kategori pemasukan dan pengeluaran"}
           </p>
         </div>
@@ -137,12 +139,10 @@ export default async function FinancePage({ searchParams }: { searchParams: Sear
       {tab === "wallets" && (
         <WalletsCard
           key={wallets.map((wallet) =>
-            [wallet.id, wallet.name, wallet.type, wallet.icon, wallet.color, wallet.balance, wallet.hasReconciliation].join(":"),
+            [wallet.id, wallet.name, wallet.type, wallet.icon, wallet.color, wallet.balance].join(":"),
           ).join("|")}
           wallets={wallets}
-          transactions={transactions.map(({ id, walletId, type, amount, note, date, reconciliationId }) => ({
-            id, walletId, type, amount, note, date, reconciliationId,
-          }))}
+          transfers={transfers}
         />
       )}
 

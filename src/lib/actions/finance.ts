@@ -2,23 +2,21 @@
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { calculateWalletBalance } from "@/lib/finance-calculations";
 import {
-  getLocalCalendarDayRange,
   ValidationError,
   validateTransactionInput,
   validateWalletBalance,
+  validateWalletTransferInput,
 } from "@/lib/validation";
 
 async function requireUser() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   return session.user.id;
-}
-
-function computeBalance(transactions: { type: string; amount: number }[]) {
-  return transactions.reduce((s, t) => s + (t.type === "masuk" ? t.amount : -t.amount), 0);
 }
 
 function validateBudgetPeriod(month: unknown, year: unknown) {
@@ -63,7 +61,7 @@ async function requireOwnedWallet(userId: string, walletId: string) {
 
 export async function getFinanceData() {
   const userId = await requireUser();
-  const [transactions, categories, budgets, rawWallets] = await Promise.all([
+  const [transactions, categories, budgets, rawWallets, transfers] = await Promise.all([
     prisma.transaction.findMany({
       where: { userId },
       include: { category: true },
@@ -78,21 +76,26 @@ export async function getFinanceData() {
       where: { userId },
       include: {
         transactions: { select: { type: true, amount: true } },
-        reconciliations: {
-          select: { id: true },
-          take: 1,
-          orderBy: { statementDate: "desc" },
-        },
+        outgoingTransfers: { select: { amount: true } },
+        incomingTransfers: { select: { amount: true } },
       },
       orderBy: { name: "asc" },
     }),
+    prisma.walletTransfer.findMany({
+      where: { userId },
+      include: {
+        fromWallet: { select: { id: true, name: true, icon: true } },
+        toWallet: { select: { id: true, name: true, icon: true } },
+      },
+      orderBy: { date: "desc" },
+      take: 50,
+    }),
   ]);
-  const wallets = rawWallets.map(({ transactions: txs, reconciliations, ...w }) => ({
+  const wallets = rawWallets.map(({ transactions: txs, outgoingTransfers, incomingTransfers, ...w }) => ({
     ...w,
-    balance: computeBalance(txs),
-    hasReconciliation: reconciliations.length > 0,
+    balance: calculateWalletBalance(txs, incomingTransfers, outgoingTransfers),
   }));
-  return { transactions, categories, budgets, wallets };
+  return { transactions, categories, budgets, wallets, transfers };
 }
 
 export async function getCategories() {
@@ -128,28 +131,18 @@ export async function updateTransaction(id: string, data: unknown) {
   const transaction = validateTransactionInput(data);
   const existing = await prisma.transaction.findFirst({
     where: { id, userId },
-    select: { categoryId: true, reconciliationId: true },
+    select: { categoryId: true },
   });
   if (!existing) throw new Error("Transaksi tidak ditemukan");
-  if (existing.reconciliationId) {
-    throw new ValidationError("Transaksi yang sudah direkonsiliasi tidak dapat diubah");
-  }
   await Promise.all([
     requireOwnedCategory(userId, transaction.categoryId, transaction.type, existing.categoryId),
     requireOwnedWallet(userId, transaction.walletId),
   ]);
   const updated = await prisma.transaction.updateMany({
-    where: { id, userId, reconciliationId: null },
+    where: { id, userId },
     data: transaction,
   });
   if (!updated.count) {
-    const current = await prisma.transaction.findFirst({
-      where: { id, userId },
-      select: { reconciliationId: true },
-    });
-    if (current?.reconciliationId) {
-      throw new ValidationError("Transaksi yang sudah direkonsiliasi tidak dapat diubah");
-    }
     throw new Error("Transaksi tidak ditemukan");
   }
   revalidatePath("/");
@@ -159,19 +152,8 @@ export async function updateTransaction(id: string, data: unknown) {
 export async function deleteTransaction(id: string) {
   const userId = await requireUser();
   if (typeof id !== "string" || !id.trim()) throw new ValidationError("Transaksi tidak valid");
-  const deleted = await prisma.transaction.deleteMany({
-    where: { id, userId, reconciliationId: null },
-  });
-  if (!deleted.count) {
-    const existing = await prisma.transaction.findFirst({
-      where: { id, userId },
-      select: { reconciliationId: true },
-    });
-    if (existing?.reconciliationId) {
-      throw new ValidationError("Transaksi yang sudah direkonsiliasi tidak dapat dihapus");
-    }
-    throw new Error("Transaksi tidak ditemukan");
-  }
+  const deleted = await prisma.transaction.deleteMany({ where: { id, userId } });
+  if (!deleted.count) throw new Error("Transaksi tidak ditemukan");
   revalidatePath("/");
   revalidatePath("/finance");
 }
@@ -267,10 +249,17 @@ export async function getWallets() {
   const userId = await requireUser();
   const wallets = await prisma.wallet.findMany({
     where: { userId },
-    include: { transactions: { select: { type: true, amount: true } } },
+    include: {
+      transactions: { select: { type: true, amount: true } },
+      outgoingTransfers: { select: { amount: true } },
+      incomingTransfers: { select: { amount: true } },
+    },
     orderBy: { name: "asc" },
   });
-  return wallets.map(({ transactions, ...w }) => ({ ...w, balance: computeBalance(transactions) }));
+  return wallets.map(({ transactions, outgoingTransfers, incomingTransfers, ...wallet }) => ({
+    ...wallet,
+    balance: calculateWalletBalance(transactions, incomingTransfers, outgoingTransfers),
+  }));
 }
 
 export async function createWallet(data: {
@@ -306,7 +295,7 @@ export async function createWallet(data: {
     return wallet;
   });
   revalidatePath("/finance");
-  return { ...w, balance: initialBalance, hasReconciliation: false };
+  return { ...w, balance: initialBalance };
 }
 
 export async function updateWallet(id: string, data: { name?: string; icon?: string; color?: string }) {
@@ -324,13 +313,19 @@ export async function deleteWallet(id: string) {
   await prisma.$transaction(async (tx) => {
     const wallet = await tx.wallet.findFirst({ where: { id, userId }, select: { id: true } });
     if (!wallet) throw new Error("Kantong tidak ditemukan");
+    const linkedTransfers = await tx.walletTransfer.count({
+      where: { userId, OR: [{ fromWalletId: id }, { toWalletId: id }] },
+    });
+    if (linkedTransfers) {
+      throw new ValidationError("Kantong masih memiliki riwayat transfer. Hapus transfer terkait sebelum menghapus kantong.");
+    }
     await tx.transaction.updateMany({ where: { walletId: id, userId }, data: { walletId: null } });
     await tx.wallet.delete({ where: { id } });
   });
   revalidatePath("/finance");
 }
 
-// Keep pre-reconciliation balance changes visible as ordinary transactions.
+// Keep balance changes visible as ordinary transactions.
 export async function setWalletBalance(walletId: string, targetBalance: number) {
   const userId = await requireUser();
   const target = validateWalletBalance(targetBalance);
@@ -340,19 +335,17 @@ export async function setWalletBalance(walletId: string, targetBalance: number) 
       where: { id: walletId, userId },
       include: {
         transactions: { select: { type: true, amount: true } },
-        reconciliations: {
-          select: { id: true },
-          take: 1,
-          orderBy: { statementDate: "desc" },
-        },
+        outgoingTransfers: { select: { amount: true } },
+        incomingTransfers: { select: { amount: true } },
       },
     });
     if (!wallet) throw new Error("Kantong tidak ditemukan");
-    if (wallet.reconciliations.length > 0) {
-      throw new ValidationError("Saldo kantong yang sudah direkonsiliasi tidak dapat diubah langsung. Catat koreksi sebagai transaksi.");
-    }
-
-    const diff = target - computeBalance(wallet.transactions);
+    const balance = calculateWalletBalance(
+      wallet.transactions,
+      wallet.incomingTransfers,
+      wallet.outgoingTransfers,
+    );
+    const diff = target - balance;
     if (diff === 0) return;
     if (Math.abs(diff) > 2_147_483_647) {
       throw new ValidationError("Selisih saldo melebihi batas yang dapat disimpan");
@@ -379,133 +372,102 @@ export async function setWalletBalance(walletId: string, targetBalance: number) 
   revalidatePath("/finance");
 }
 
-export async function createWalletReconciliation(
-  walletId: string,
-  input: {
-    statementDate: string;
-    statementBalance: number;
-    transactionIds: string[];
-    timezoneOffsetMinutes: number;
-    nextDayTimezoneOffsetMinutes: number;
-  },
-) {
+export async function createWalletTransfer(data: unknown) {
   const userId = await requireUser();
-  if (typeof walletId !== "string" || !walletId.trim()) {
-    throw new ValidationError("Kantong tidak valid");
-  }
-  if (!input || typeof input !== "object" || Array.isArray(input)) {
-    throw new ValidationError("Data rekonsiliasi tidak valid");
-  }
-  if (typeof input.statementDate !== "string" ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(input.statementDate)) {
-    throw new ValidationError("Tanggal laporan tidak valid");
-  }
-  const { statementDate, start, end } = getLocalCalendarDayRange(
-    input.statementDate,
-    input.timezoneOffsetMinutes,
-    input.nextDayTimezoneOffsetMinutes,
-  );
-  if (!Number.isSafeInteger(input.statementBalance) ||
-      input.statementBalance < -2_147_483_648 ||
-      input.statementBalance > 2_147_483_647) {
-    throw new ValidationError("Saldo laporan tidak valid");
-  }
-  if (!Array.isArray(input.transactionIds) ||
-      input.transactionIds.length > 10_000 ||
-      input.transactionIds.some((id) => typeof id !== "string" || !id.trim())) {
-    throw new ValidationError("Daftar transaksi rekonsiliasi tidak valid");
-  }
-  const transactionIds = input.transactionIds.map((id) => id.trim());
-  if (new Set(transactionIds).size !== transactionIds.length) {
-    throw new ValidationError("Daftar transaksi rekonsiliasi tidak boleh berisi duplikat");
-  }
-  await prisma.$transaction(async (tx) => {
-    const wallet = await tx.wallet.findFirst({
-      where: { id: walletId, userId },
-      select: { id: true, name: true },
-    });
-    if (!wallet) throw new ValidationError("Kantong tidak ditemukan");
-    const lastReconciliation = await tx.walletReconciliation.findFirst({
-      where: { userId, walletId },
-      orderBy: { statementDate: "desc" },
-      select: { statementDate: true },
-    });
-    if (lastReconciliation && statementDate <= lastReconciliation.statementDate) {
-      throw new ValidationError("Tanggal laporan harus setelah rekonsiliasi terakhir");
-    }
+  const transfer = validateWalletTransferInput(data);
+  try {
+    await prisma.$transaction(async (tx) => {
+      const [fromWallet, toWallet] = await Promise.all([
+        tx.wallet.findFirst({
+          where: { id: transfer.fromWalletId, userId },
+          select: { id: true },
+        }),
+        tx.wallet.findFirst({
+          where: { id: transfer.toWalletId, userId },
+          select: { id: true },
+        }),
+      ]);
+      if (!fromWallet || !toWallet) throw new ValidationError("Kantong asal atau tujuan tidak ditemukan");
 
-    const selectedTransactions = transactionIds.length
-      ? await tx.transaction.findMany({
-        where: {
-          id: { in: transactionIds },
-          userId,
-          walletId,
-          reconciliationId: null,
-          date: { gte: start, lt: end },
-        },
-        select: { id: true },
-      })
-      : [];
-    if (selectedTransactions.length !== transactionIds.length) {
-      throw new ValidationError(
-        "Pilih transaksi yang belum direkonsiliasi di kantong ini dan sampai tanggal laporan",
-      );
-    }
-
-    const balanceTransactions = await tx.transaction.findMany({
-      where: {
-        userId,
-        walletId,
-        date: { lt: end },
-        OR: [
-          { reconciliationId: { not: null } },
-          { id: { in: transactionIds } },
-        ],
-      },
-      select: { type: true, amount: true },
-    });
-    let calculatedBalance = 0;
-    for (const transaction of balanceTransactions) {
-      calculatedBalance += transaction.type === "masuk" ? transaction.amount : -transaction.amount;
-      if (!Number.isSafeInteger(calculatedBalance)) {
-        throw new ValidationError("Jumlah transaksi melebihi batas perhitungan saldo");
+      const [transactions, incoming, outgoing] = await Promise.all([
+        tx.transaction.findMany({
+          where: { userId, walletId: fromWallet.id },
+          select: { type: true, amount: true },
+        }),
+        tx.walletTransfer.findMany({
+          where: { userId, toWalletId: fromWallet.id },
+          select: { amount: true },
+        }),
+        tx.walletTransfer.findMany({
+          where: { userId, fromWalletId: fromWallet.id },
+          select: { amount: true },
+        }),
+      ]);
+      const balance = calculateWalletBalance(transactions, incoming, outgoing);
+      if (balance < transfer.amount) {
+        throw new ValidationError("Saldo kantong asal tidak mencukupi untuk transfer ini");
       }
-    }
-    if (calculatedBalance !== input.statementBalance) {
-      const discrepancy = input.statementBalance - calculatedBalance;
-      if (!Number.isSafeInteger(discrepancy)) {
-        throw new ValidationError("Selisih saldo laporan melebihi batas perhitungan");
-      }
-      throw new ValidationError(`Saldo laporan tidak cocok. Selisih: ${discrepancy}`);
-    }
 
-    const reconciliation = await tx.walletReconciliation.create({
-      data: {
-        userId,
-        walletId,
-        walletName: wallet.name,
-        statementDate,
-        statementBalance: input.statementBalance,
-      },
-      select: { id: true },
-    });
-    if (transactionIds.length) {
-      const updated = await tx.transaction.updateMany({
-        where: {
-          id: { in: transactionIds },
+      await tx.walletTransfer.create({
+        data: {
           userId,
-          walletId,
-          reconciliationId: null,
-          date: { gte: start, lt: end },
+          fromWalletId: fromWallet.id,
+          toWalletId: toWallet.id,
+          amount: transfer.amount,
+          note: transfer.note,
+          date: transfer.date,
         },
-        data: { reconciliationId: reconciliation.id },
       });
-      if (updated.count !== transactionIds.length) {
-        throw new ValidationError("Sebagian transaksi telah direkonsiliasi. Muat ulang lalu coba lagi");
-      }
+    }, { isolationLevel: "Serializable" });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+      throw new ValidationError("Saldo kantong berubah saat transfer diproses. Muat ulang lalu coba lagi.");
     }
-  }, { isolationLevel: "Serializable" });
+    throw error;
+  }
+  revalidatePath("/");
+  revalidatePath("/finance");
+}
 
+export async function deleteWalletTransfer(id: string) {
+  const userId = await requireUser();
+  if (typeof id !== "string" || !id.trim()) throw new ValidationError("Transfer tidak valid");
+  try {
+    await prisma.$transaction(async (tx) => {
+      const transfer = await tx.walletTransfer.findFirst({
+        where: { id, userId },
+        select: { amount: true, toWalletId: true },
+      });
+      if (!transfer) throw new Error("Transfer tidak ditemukan");
+
+      const [transactions, incoming, outgoing] = await Promise.all([
+        tx.transaction.findMany({
+          where: { userId, walletId: transfer.toWalletId },
+          select: { type: true, amount: true },
+        }),
+        tx.walletTransfer.findMany({
+          where: { userId, toWalletId: transfer.toWalletId },
+          select: { amount: true },
+        }),
+        tx.walletTransfer.findMany({
+          where: { userId, fromWalletId: transfer.toWalletId },
+          select: { amount: true },
+        }),
+      ]);
+      const balance = calculateWalletBalance(transactions, incoming, outgoing);
+      if (balance < transfer.amount) {
+        throw new ValidationError("Transfer tidak dapat dihapus karena saldo kantong tujuan sudah terpakai.");
+      }
+
+      await tx.walletTransfer.delete({ where: { id } });
+    }, { isolationLevel: "Serializable" });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+      throw new ValidationError("Saldo kantong berubah saat transfer diproses. Muat ulang lalu coba lagi.");
+    }
+    throw error;
+  }
+  revalidatePath("/");
   revalidatePath("/finance");
 }
 

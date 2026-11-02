@@ -113,55 +113,31 @@ export function validateWalletBalance(value: unknown) {
   return value as number;
 }
 
-function isTimezoneOffset(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= -840 && value <= 840;
-}
-
-export function getLocalCalendarDayRange(
-  value: unknown,
-  timezoneOffsetMinutes: unknown,
-  nextDayTimezoneOffsetMinutes: unknown,
-) {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw new ValidationError("Tanggal laporan tidak valid");
+export function validateWalletTransferInput(value: unknown) {
+  const data = requireObject(value, "Data transfer tidak valid");
+  if (typeof data.fromWalletId !== "string" || !data.fromWalletId.trim() ||
+      typeof data.toWalletId !== "string" || !data.toWalletId.trim()) {
+    throw new ValidationError("Pilih kantong asal dan tujuan");
   }
-  const year = Number(value.slice(0, 4));
-  const statementDate = new Date(`${value}T00:00:00.000Z`);
-  if (year < 1 || year > 9999 ||
-      Number.isNaN(statementDate.getTime()) ||
-      statementDate.toISOString().slice(0, 10) !== value) {
-    throw new ValidationError("Tanggal laporan tidak valid");
+  const fromWalletId = data.fromWalletId.trim();
+  const toWalletId = data.toWalletId.trim();
+  if (fromWalletId === toWalletId) {
+    throw new ValidationError("Kantong asal dan tujuan harus berbeda");
   }
-  if (!isTimezoneOffset(timezoneOffsetMinutes) || !isTimezoneOffset(nextDayTimezoneOffsetMinutes)) {
-    throw new ValidationError("Zona waktu laporan tidak valid");
+  if (!Number.isSafeInteger(data.amount) || (data.amount as number) <= 0 ||
+      (data.amount as number) > MAX_DATABASE_INTEGER) {
+    throw new ValidationError("Jumlah transfer harus berupa angka bulat yang valid");
   }
-
-  const start = new Date(statementDate.getTime() + timezoneOffsetMinutes * 60_000);
-  const nextUtcMidnight = new Date(statementDate);
-  nextUtcMidnight.setUTCDate(nextUtcMidnight.getUTCDate() + 1);
-  const end = new Date(nextUtcMidnight.getTime() + nextDayTimezoneOffsetMinutes * 60_000);
-  return { statementDate, start, end };
-}
-
-export function getLocalCalendarMonthRange(
-  month: unknown,
-  year: unknown,
-  monthStartTimezoneOffsetMinutes: unknown,
-  nextMonthStartTimezoneOffsetMinutes: unknown,
-) {
-  if (typeof month !== "number" || !Number.isSafeInteger(month) || month < 1 || month > 12 ||
-      typeof year !== "number" || !Number.isSafeInteger(year) || year < 2000 || year > 9999) {
-    throw new ValidationError("Periode anggaran tidak valid");
+  if (typeof data.note !== "string") throw new ValidationError("Catatan transfer tidak valid");
+  const note = data.note.trim();
+  if (!note || note.length > 200) {
+    throw new ValidationError("Catatan transfer harus berisi 1–200 karakter");
   }
-  if (!isTimezoneOffset(monthStartTimezoneOffsetMinutes) ||
-      !isTimezoneOffset(nextMonthStartTimezoneOffsetMinutes)) {
-    throw new ValidationError("Zona waktu periode tidak valid");
-  }
-
-  const monthStart = new Date(Date.UTC(year, month - 1, 1));
-  const nextMonthStart = new Date(Date.UTC(year, month, 1));
   return {
-    start: new Date(monthStart.getTime() + monthStartTimezoneOffsetMinutes * 60_000),
-    end: new Date(nextMonthStart.getTime() + nextMonthStartTimezoneOffsetMinutes * 60_000),
+    fromWalletId,
+    toWalletId,
+    amount: data.amount as number,
+    note,
+    date: validateOptionalDate(data.date, "Tanggal transfer") ?? new Date(),
   };
 }

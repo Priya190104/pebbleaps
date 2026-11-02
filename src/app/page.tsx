@@ -11,6 +11,7 @@ import { formatRupiah, daysUntil } from "@/lib/utils";
 import { getTaskCompletionEvents, getTasks } from "@/lib/actions/tasks";
 import { getFinanceData } from "@/lib/actions/finance";
 import { getGoals } from "@/lib/actions/goals";
+import { ActivityTracker } from "./_components/activity-tracker";
 
 export default async function HomePage() {
   const [tasks, { transactions, categories, budgets }, goals, completionEvents] = await Promise.all([
@@ -43,6 +44,7 @@ export default async function HomePage() {
 
   return (
     <RoomShell>
+      <ActivityTracker feature="home" />
       <WelcomeOverlay />
       <RoomHeader />
 

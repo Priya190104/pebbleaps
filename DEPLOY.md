@@ -218,6 +218,7 @@ Isi file `.env` dengan nilai yang sudah kamu siapkan di Langkah 3:
 # ── Aplikasi ────────────────────────────────────────────────
 NEXTAUTH_URL=https://yourdomain.com
 NEXTAUTH_SECRET=<hasil_openssl_rand_dari_langkah_3.3>
+ADMIN_EMAILS=admin@yourdomain.com
 
 # Password PostgreSQL baru; gunakan karakter hex agar aman di DATABASE_URL
 POSTGRES_PASSWORD=<hasil_openssl_rand_-hex_24>
@@ -240,6 +241,7 @@ CRON_SECRET=<secret_acak_untuk_cron>
 ```
 
 > **Penting:** Ganti `yourdomain.com` di semua baris dengan domain kamu yang sebenarnya.
+> `ADMIN_EMAILS` adalah daftar alamat email Google yang boleh membuka dashboard analitik admin. Pisahkan beberapa alamat dengan koma; nilai ini hanya dibaca di server.
 > Buat password baru dengan `openssl rand -hex 24`. Jika menggunakan database volume lama yang sebelumnya memakai password `pebble`, pertahankan nilai `POSTGRES_PASSWORD=pebble` agar aplikasi tetap dapat tersambung; ubah password database lama secara terencana sebelum menggantinya.
 
 ### 5.3 Siapkan build image otomatis
@@ -541,7 +543,7 @@ docker compose down -v
 docker compose run --rm migrate
 ```
 
-Migrasi analitik menambahkan riwayat penyelesaian tugas dan perubahan progress goal. Migrasi ini tidak menghapus data, tetapi riwayat hanya tercatat mulai setelah migrasi diterapkan; data lama yang tidak memiliki log tidak direkonstruksi. Detail metrik dan sumber pola desain ada di [ANALYTICS.md](./ANALYTICS.md).
+Migrasi menambahkan riwayat analitik tugas dan goal, pencatatan login/aktivitas, serta transfer antar kantong. Migrasi terbaru menghapus metadata rekonsiliasi yang tidak lagi dipakai; transaksi keuangan tetap dipertahankan. Aktivitas dan login hanya tercatat setelah migrasi diterapkan dan tidak direkonstruksi dari data lama. Atur `ADMIN_EMAILS` di `.env` sebelum membuka dashboard admin. Detail metrik ada di [ANALYTICS.md](./ANALYTICS.md).
 
 ### Akses Shell Database
 

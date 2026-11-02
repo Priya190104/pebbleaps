@@ -11,6 +11,7 @@ import { PageFab } from "@/app/_components/page-fab";
 import { AddMilestone, GoalNotes, NumericGoalProgress } from "./_components/goal-controls";
 import { GoalProgressChart } from "./_components/goal-progress-chart";
 import { GoalDeleteButton } from "./_components/goal-delete-button";
+import { ActivityTracker } from "@/app/_components/activity-tracker";
 
 type GoalItem = Awaited<ReturnType<typeof getGoals>>[number];
 type HabitLog = GoalItem["habitLogs"][number];
@@ -35,6 +36,7 @@ export default async function GoalsPage() {
 
   return (
     <RoomShell>
+      <ActivityTracker feature="goals" />
       {/* Page header */}
       <div className="flex items-center justify-between mb-5">
         <div>

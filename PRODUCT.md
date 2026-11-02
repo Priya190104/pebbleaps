@@ -48,9 +48,14 @@ The "pebble" metaphor: small, consistent daily actions that create lasting rippl
 - User-defined income and expense categories per account; categories are ordinary items and can use a selected emoji
 - Search and filter transactions by note, month, type, category, and wallet
 - Monthly budgets with historical month navigation and over-budget alerts; previously recorded rollover amounts remain part of historical budget data
-- Reconcile wallet transactions against a dated statement balance; reconciled transactions are locked against edits and deletion
+- Transfer money between a user's wallets; transfers preserve the combined balance and are not counted as income or expenses
 - Finance summary period filter applies to the balance, income/expense totals, trend, expense-by-category chart, and transaction list: one date or an unrestricted date range, a Monday–Sunday week, a month, or a year
 - Dashboard: running balance, expense-by-category chart, financial trend chart (Recharts)
+
+**Admin Analytics**
+- Admin-only, aggregate dashboard for registered users, successful logins, active users, retention, and feature usage
+- Login events and daily feature visits are tracked separately; no personal finance or goal details are exposed
+- Admin access is configured with the server-side `ADMIN_EMAILS` environment variable
 
 **Penetapan Goal (Goal Setting)**
 - Four goal types: numeric target (e.g., save Rp 5 million), daily habit, milestone with sub-deadlines, open-ended progress log

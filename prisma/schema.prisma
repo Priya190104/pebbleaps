@@ -18,15 +18,17 @@ model User {
   accounts      Account[]
   sessions      Session[]
 
-  roomSettings    RoomSettings?
-  tasks           Task[]
-  categories      Category[]
-  transactions    Transaction[]
-  budgets         Budget[]
-  goals           Goal[]
-  pushSubs        PushSubscription[]
-  wallets         Wallet[]
-  reconciliations WalletReconciliation[]
+  roomSettings   RoomSettings?
+  tasks          Task[]
+  categories     Category[]
+  transactions   Transaction[]
+  transfers      WalletTransfer[]
+  budgets        Budget[]
+  goals          Goal[]
+  pushSubs       PushSubscription[]
+  wallets        Wallet[]
+  loginEvents    LoginEvent[]
+  activityEvents UserActivity[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -136,23 +138,20 @@ model Category {
 }
 
 model Transaction {
-  id               String   @id @default(cuid())
-  userId           String
-  type             String
-  amount           Int
-  note             String
-  categoryId       String
-  date             DateTime @default(now())
-  walletId         String?
-  reconciliationId String?
+  id         String   @id @default(cuid())
+  userId     String
+  type       String
+  amount     Int
+  note       String
+  categoryId String
+  date       DateTime @default(now())
+  walletId   String?
 
-  category       Category              @relation(fields: [categoryId], references: [id])
-  wallet         Wallet?               @relation(fields: [walletId], references: [id])
-  reconciliation WalletReconciliation? @relation(fields: [reconciliationId], references: [id], onDelete: SetNull)
-  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id])
+  wallet   Wallet?  @relation(fields: [walletId], references: [id])
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
-  @@index([reconciliationId])
 }
 
 model Budget {
@@ -252,23 +251,54 @@ model Wallet {
   icon   String @default("💵")
   color  String @default("#E8BE78")
 
-  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions    Transaction[]
-  reconciliations WalletReconciliation[]
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions      Transaction[]
+  outgoingTransfers WalletTransfer[] @relation("TransferFrom")
+  incomingTransfers WalletTransfer[] @relation("TransferTo")
 
   @@index([userId])
 }
 
-model WalletReconciliation {
-  id               String   @id @default(cuid())
-  userId           String
-  walletId         String?
-  walletName       String
-  statementDate    DateTime @db.Date
-  statementBalance Int
-  createdAt        DateTime @default(now())
+model WalletTransfer {
+  id           String   @id @default(cuid())
+  userId       String
+  fromWalletId String
+  toWalletId   String
+  amount       Int
+  note         String
+  date         DateTime @default(now())
+  createdAt    DateTime @default(now())
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  wallet       Wallet?       @relation(fields: [walletId], references: [id], onDelete: SetNull)
-  transactions Transaction[]
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromWallet Wallet @relation("TransferFrom", fields: [fromWalletId], references: [id], onDelete: Cascade)
+  toWallet   Wallet @relation("TransferTo", fields: [toWalletId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([fromWalletId, date])
+  @@index([toWalletId, date])
+}
+
+model LoginEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  loginDate DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([loginDate, userId])
+}
+
+model UserActivity {
+  id        String   @id @default(cuid())
+  userId    String
+  feature   String
+  date      DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, feature, date])
+  @@index([date, userId])
+  @@index([feature, date])
 }

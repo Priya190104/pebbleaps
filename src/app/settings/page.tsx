@@ -7,6 +7,10 @@ import type { Wallpaper, ThemeColor } from "@/lib/types";
 import { SettingsPickers } from "./_components/settings-pickers";
 import { SettingsIdentity } from "./_components/settings-identity";
 import { PushSettings } from "./_components/push-settings";
+import { isAdminEmail } from "@/lib/admin";
+import Link from "next/link";
+import { ChartNoAxesCombined } from "lucide-react";
+import { ActivityTracker } from "@/app/_components/activity-tracker";
 
 export default async function SettingsPage() {
   const [settings, session] = await Promise.all([getRoomSettings(), auth()]);
@@ -17,6 +21,7 @@ export default async function SettingsPage() {
 
   return (
     <RoomShell>
+      <ActivityTracker feature="settings" />
       <div className="mb-5">
         <h1 className="text-room-text text-xl font-extrabold">Personalisasi Ruangan</h1>
         <p className="text-room-muted text-sm font-semibold">Buat ruanganmu terasa seperti milikmu</p>
@@ -38,6 +43,25 @@ export default async function SettingsPage() {
         <RoomCardHeader icon={<Bell size={16} className="text-peach-500" />} title="Pengingat Deadline" accent="peach" />
         <PushSettings />
       </RoomCard>
+
+      {isAdminEmail(session?.user?.email) && (
+        <RoomCard className="mb-4">
+          <RoomCardHeader
+            icon={<ChartNoAxesCombined size={16} className="text-mint-600" />}
+            title="Analitik aplikasi"
+            accent="mint"
+          />
+          <p className="mb-3 text-sm font-semibold text-room-muted">
+            Pantau penggunaan Pebble dalam bentuk ringkasan agregat.
+          </p>
+          <Link
+            href="/admin"
+            className="inline-flex min-h-11 items-center rounded-xl bg-mint-600 px-4 text-sm font-extrabold text-white hover:bg-mint-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint-400"
+          >
+            Buka dashboard admin
+          </Link>
+        </RoomCard>
+      )}
 
       {/* Account */}
       {session?.user && (

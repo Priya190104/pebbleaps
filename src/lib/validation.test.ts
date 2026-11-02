@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  getLocalCalendarDayRange,
-  getLocalCalendarMonthRange,
   validateTaskInput,
   validateTransactionInput,
   validateWalletBalance,
+  validateWalletTransferInput,
 } from "./validation";
+import { analyticsCalendarDate } from "./analytics-date";
+import { calculateWalletBalance } from "./finance-calculations";
 
 test("task validation trims text and preserves supported values", () => {
   const result = validateTaskInput({
@@ -64,37 +65,47 @@ test("wallet balances must be non-negative database integers", () => {
   assert.throws(() => validateWalletBalance(2_147_483_648), /Saldo/);
 });
 
-test("local calendar day range respects UTC+07 transaction dates", () => {
-  const range = getLocalCalendarDayRange("2026-10-19", -420, -420);
-
-  assert.equal(range.start.toISOString(), "2026-10-18T17:00:00.000Z");
-  assert.equal(range.end.toISOString(), "2026-10-19T17:00:00.000Z");
-  assert.equal(new Date("2026-10-19T16:59:59.999Z") < range.end, true);
-  assert.equal(new Date("2026-10-19T20:00:00.000Z") < range.end, false);
+test("analytics dates use the Indonesian calendar day boundary", () => {
+  assert.equal(
+    analyticsCalendarDate(new Date("2026-11-02T16:59:59.000Z")).toISOString(),
+    "2026-11-02T00:00:00.000Z",
+  );
+  assert.equal(
+    analyticsCalendarDate(new Date("2026-11-02T17:00:00.000Z")).toISOString(),
+    "2026-11-03T00:00:00.000Z",
+  );
 });
 
-test("local calendar day range supports daylight-saving transitions", () => {
-  const range = getLocalCalendarDayRange("2026-11-01", 240, 300);
+test("wallet transfer validation requires distinct wallets and a positive integer amount", () => {
+  const valid = {
+    fromWalletId: " wallet-1 ",
+    toWalletId: "wallet-2",
+    amount: 25_000,
+    note: "  Pindah dana  ",
+    date: "2026-10-19",
+  };
+  const transfer = validateWalletTransferInput(valid);
 
-  assert.equal(range.end.getTime() - range.start.getTime(), 25 * 60 * 60 * 1000);
+  assert.equal(transfer.fromWalletId, "wallet-1");
+  assert.equal(transfer.toWalletId, "wallet-2");
+  assert.equal(transfer.note, "Pindah dana");
+  assert.equal(transfer.amount, 25_000);
+  assert.throws(() => validateWalletTransferInput({ ...valid, toWalletId: "wallet-1" }), /harus berbeda/);
+  assert.throws(() => validateWalletTransferInput({ ...valid, amount: 0 }), /Jumlah transfer/);
+  assert.throws(() => validateWalletTransferInput({ ...valid, amount: 1.5 }), /Jumlah transfer/);
+  assert.throws(() => validateWalletTransferInput({ ...valid, amount: 2_147_483_648 }), /Jumlah transfer/);
 });
 
-test("local calendar day range rejects invalid dates and timezone offsets", () => {
-  assert.throws(() => getLocalCalendarDayRange("2026-02-30", 0, 0), /Tanggal laporan/);
-  assert.throws(() => getLocalCalendarDayRange("2026-10-19", 841, 841), /Zona waktu/);
-  assert.throws(() => getLocalCalendarDayRange("2026-10-19", 420, "420"), /Zona waktu/);
-});
+test("wallet transfers conserve the combined balance", () => {
+  const sourceBefore = calculateWalletBalance([{ type: "masuk", amount: 100_000 }], [], []);
+  const targetBefore = calculateWalletBalance([{ type: "masuk", amount: 20_000 }], [], []);
+  const amount = 40_000;
+  const sourceAfter = calculateWalletBalance([{ type: "masuk", amount: 100_000 }], [], [{ amount }]);
+  const targetAfter = calculateWalletBalance([{ type: "masuk", amount: 20_000 }], [{ amount }], []);
 
-test("local calendar month range respects timezone and daylight-saving boundaries", () => {
-  const indonesiaOctober = getLocalCalendarMonthRange(10, 2026, -420, -420);
-  assert.equal(indonesiaOctober.start.toISOString(), "2026-09-30T17:00:00.000Z");
-  assert.equal(indonesiaOctober.end.toISOString(), "2026-10-31T17:00:00.000Z");
-
-  const newYorkNovember = getLocalCalendarMonthRange(11, 2026, 240, 300);
-  assert.equal(newYorkNovember.end.getTime() - newYorkNovember.start.getTime(), (30 * 24 + 1) * 60 * 60 * 1000);
-});
-
-test("local calendar month range rejects invalid periods and offsets", () => {
-  assert.throws(() => getLocalCalendarMonthRange(13, 2026, 0, 0), /Periode anggaran/);
-  assert.throws(() => getLocalCalendarMonthRange(10, 2026, 0, -841), /Zona waktu/);
+  assert.equal(sourceAfter, sourceBefore - amount);
+  assert.equal(targetAfter, targetBefore + amount);
+  assert.equal(sourceAfter + targetAfter, sourceBefore + targetBefore);
+  assert.equal(sourceBefore >= amount, true);
+  assert.equal(targetBefore >= amount, false);
 });
