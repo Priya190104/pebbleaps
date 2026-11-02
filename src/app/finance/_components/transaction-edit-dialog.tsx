@@ -88,9 +88,10 @@ export function TransactionEditDialog({
           type="button"
           aria-label={`Edit transaksi ${transaction.note}`}
           title="Edit transaksi"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-room-muted hover:bg-cream-100 hover:text-cream-700"
+          className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-bold text-room-text hover:bg-cream-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400"
         >
-          <Pencil size={14} />
+          <Pencil size={15} aria-hidden="true" />
+          Edit transaksi
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Pencil, Plus, Tags, Trash2, X } from "lucide-react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { Check, MoreHorizontal, Pencil, Plus, Tags, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmojiPicker } from "@/components/ui/emoji-picker";
 import { RoomCard, RoomCardHeader } from "@/components/ui/room-card";
@@ -104,24 +105,37 @@ function CategoryRow({
       )}>
         {category.forIncome ? "Pemasukan" : "Pengeluaran"}
       </span>
-      <div className="ml-auto flex gap-1">
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          aria-label={`Edit kategori ${category.name}`}
-          className="flex h-10 items-center gap-1.5 rounded-lg border border-room-border bg-white px-3 text-xs font-bold text-room-text hover:bg-cream-50"
+      <details className="relative ml-auto shrink-0">
+        <summary
+          aria-label={`Aksi kategori ${category.name}`}
+          title="Aksi kategori"
+          className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-xl text-room-muted hover:bg-cream-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400 [&::-webkit-details-marker]:hidden"
         >
-          <Pencil size={13} /> Edit
-        </button>
-        <button
-          type="button"
-          onClick={() => onDelete(category.id)}
-          aria-label={`Hapus kategori ${category.name}`}
-          className="flex h-10 items-center gap-1.5 rounded-lg border border-peach-200 bg-peach-50 px-3 text-xs font-bold text-peach-600 hover:bg-peach-100"
-        >
-          <Trash2 size={13} /> Hapus
-        </button>
-      </div>
+          <MoreHorizontal size={19} aria-hidden="true" />
+        </summary>
+        <div className="absolute right-0 top-full z-10 mt-1 min-w-44 rounded-xl border border-room-border bg-white p-1 shadow-lg">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.currentTarget.closest("details")?.removeAttribute("open");
+              setEditing(true);
+            }}
+            className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-bold text-room-text hover:bg-cream-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400"
+          >
+            <Pencil size={15} aria-hidden="true" /> Edit kategori
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.currentTarget.closest("details")?.removeAttribute("open");
+              onDelete(category.id);
+            }}
+            className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-bold text-peach-600 hover:bg-peach-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400"
+          >
+            <Trash2 size={15} aria-hidden="true" /> Hapus kategori
+          </button>
+        </div>
+      </details>
     </li>
   );
 }
@@ -175,76 +189,29 @@ export function CategoryManager({ categories: initial }: { categories: Category[
     "w-full rounded-xl border-2 border-room-border bg-white px-3 py-2.5 text-sm font-bold text-room-text focus:border-cream-400 focus:outline-none";
 
   return (
+    <Dialog.Root open={showAdd} onOpenChange={setShowAdd}>
     <RoomCard className="mb-4 min-w-0">
       <RoomCardHeader
         icon={<Tags size={18} />}
         title="Kategori"
         accent="cream"
         action={
-          <button
-            type="button"
-            onClick={() => setShowAdd((value) => !value)}
-            className="flex min-h-10 items-center gap-1.5 rounded-xl bg-cream-100 px-3 text-xs font-bold text-cream-700 hover:bg-cream-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400"
-          >
-            {showAdd ? <X size={14} /> : <Plus size={14} />}
-            {showAdd ? "Tutup" : "Tambah kategori"}
-          </button>
+          <Dialog.Trigger asChild>
+            <button
+              type="button"
+              aria-label="Tambah kategori"
+              className="flex h-11 w-11 items-center justify-center rounded-xl bg-cream-100 text-cream-700 transition-colors hover:bg-cream-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400 sm:w-auto sm:gap-1.5 sm:px-3"
+            >
+              <Plus size={16} aria-hidden="true" />
+              <span className="hidden text-xs font-bold sm:inline">Tambah kategori</span>
+            </button>
+          </Dialog.Trigger>
         }
       />
       <p className="mb-3 text-xs font-semibold text-room-muted">
         Atur kategori pemasukan dan pengeluaran. Menghapus kategori tidak menghapus transaksi atau anggaran yang sudah tercatat.
       </p>
-      {error && <p role="alert" className="mb-3 rounded-lg bg-peach-50 px-3 py-2 text-xs font-semibold text-peach-600">{error}</p>}
-
-      {showAdd && (
-        <div className="mb-3 rounded-xl border-2 border-cream-200 bg-cream-50 p-3">
-          <div className="mb-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-            <label className="text-xs font-bold text-room-muted">
-              Nama kategori
-              <input
-                value={addName}
-                onChange={(event) => setAddName(event.target.value)}
-                maxLength={80}
-                placeholder="Contoh: Tagihan"
-                className={`${inputClass} mt-1`}
-              />
-            </label>
-            <EmojiPicker value={addIcon} onChange={setAddIcon} label="Pilih emoji" />
-          </div>
-          <div className="mb-3 flex gap-2">
-            <button
-              type="button"
-              onClick={() => setAddForIncome(false)}
-              aria-pressed={!addForIncome}
-              className={cn(
-                "min-h-10 flex-1 rounded-xl border-2 px-3 py-2 text-xs font-bold",
-                !addForIncome ? "border-peach-400 bg-peach-400 text-white" : "border-room-border bg-white text-room-muted",
-              )}
-            >
-              Pengeluaran
-            </button>
-            <button
-              type="button"
-              onClick={() => setAddForIncome(true)}
-              aria-pressed={addForIncome}
-              className={cn(
-                "min-h-10 flex-1 rounded-xl border-2 px-3 py-2 text-xs font-bold",
-                addForIncome ? "border-mint-400 bg-mint-400 text-white" : "border-room-border bg-white text-room-muted",
-              )}
-            >
-              Pemasukan
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => void handleAdd()}
-            disabled={saving || !addName.trim()}
-            className="min-h-10 rounded-xl bg-cream-500 px-4 py-2 text-xs font-extrabold text-white hover:bg-cream-600 disabled:opacity-50"
-          >
-            {saving ? "Menyimpan..." : "Simpan kategori"}
-          </button>
-        </div>
-      )}
+      {error && !showAdd && <p role="alert" className="mb-3 rounded-lg bg-peach-50 px-3 py-2 text-xs font-semibold text-peach-600">{error}</p>}
 
       {categories.length === 0 ? (
         <p className="py-4 text-center text-sm font-semibold text-room-muted">Belum ada kategori.</p>
@@ -260,6 +227,72 @@ export function CategoryManager({ categories: initial }: { categories: Category[
           ))}
         </ul>
       )}
+      <Dialog.Portal>
+        <Dialog.Overlay className="modal-overlay fixed inset-0 z-50 bg-room-text/25 backdrop-blur-[2px]" />
+        <Dialog.Content className="modal-sheet fixed inset-x-0 bottom-0 z-50 max-h-[90dvh] overflow-y-auto rounded-t-3xl border-t-2 border-room-border bg-white p-5 pb-safe lg:inset-x-auto lg:left-1/2 lg:top-1/2 lg:bottom-auto lg:w-full lg:max-w-md lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-2xl lg:border-2">
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <Dialog.Title className="font-extrabold text-room-text">Tambah kategori</Dialog.Title>
+            <Dialog.Close aria-label="Tutup" className="flex h-11 w-11 items-center justify-center rounded-xl text-room-muted hover:bg-cream-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400">
+              <X size={18} />
+            </Dialog.Close>
+          </div>
+          <Dialog.Description className="mb-4 text-xs font-semibold text-room-muted">
+            Pilih nama, ikon, dan jenis transaksi untuk kategori baru.
+          </Dialog.Description>
+          <label className="block text-xs font-bold text-room-muted">
+            Nama kategori
+            <input
+              value={addName}
+              onChange={(event) => setAddName(event.target.value)}
+              maxLength={80}
+              placeholder="Contoh: Tagihan"
+              className={`${inputClass} mt-1`}
+            />
+          </label>
+          <div className="my-3">
+            <EmojiPicker value={addIcon} onChange={setAddIcon} label="Pilih emoji" />
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setAddForIncome(false)}
+              aria-pressed={!addForIncome}
+              className={cn(
+                "min-h-11 flex-1 rounded-xl border-2 px-3 py-2 text-xs font-bold",
+                !addForIncome ? "border-peach-400 bg-peach-400 text-white" : "border-room-border bg-white text-room-muted",
+              )}
+            >
+              Pengeluaran
+            </button>
+            <button
+              type="button"
+              onClick={() => setAddForIncome(true)}
+              aria-pressed={addForIncome}
+              className={cn(
+                "min-h-11 flex-1 rounded-xl border-2 px-3 py-2 text-xs font-bold",
+                addForIncome ? "border-mint-400 bg-mint-400 text-white" : "border-room-border bg-white text-room-muted",
+              )}
+            >
+              Pemasukan
+            </button>
+          </div>
+          {error && <p role="alert" className="mt-3 rounded-lg bg-peach-50 px-3 py-2 text-xs font-semibold text-peach-600">{error}</p>}
+          <div className="mt-5 flex gap-2">
+            <Dialog.Close className="min-h-11 flex-1 rounded-xl border-2 border-room-border px-3 text-sm font-bold text-room-muted hover:bg-cream-50">
+              Batal
+            </Dialog.Close>
+            <button
+              type="button"
+              onClick={() => void handleAdd()}
+              disabled={saving || !addName.trim()}
+              className="min-h-11 flex-1 rounded-xl bg-cream-500 px-3 text-sm font-extrabold text-white hover:bg-cream-600 disabled:opacity-50"
+            >
+              {saving ? "Menyimpan..." : "Simpan kategori"}
+            </button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
     </RoomCard>
+    </Dialog.Root>
   );
 }

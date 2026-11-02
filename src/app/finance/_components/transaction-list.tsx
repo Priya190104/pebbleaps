@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { formatRupiah } from "@/lib/utils";
-import { RotateCcw, Trash2 } from "lucide-react";
+import { MoreHorizontal, RotateCcw, Trash2 } from "lucide-react";
 import { deleteTransaction } from "@/lib/actions/finance";
 import { TransactionEditDialog } from "./transaction-edit-dialog";
 
@@ -167,22 +167,34 @@ export function TransactionList({
                   <span className={`shrink-0 text-sm font-extrabold ${transaction.type === "masuk" ? "text-mint-500" : "text-peach-500"}`}>
                     {transaction.type === "masuk" ? "+" : "−"}{formatRupiah(transaction.amount)}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => void handleDelete(transaction.id)}
-                    aria-label={`Hapus transaksi ${transaction.note}`}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-room-subtle hover:bg-peach-50 hover:text-peach-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400"
-                    title="Hapus transaksi"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                  <TransactionEditDialog
-                    transaction={transaction}
-                    categories={transaction.category.isActive
-                      ? categories.filter((category) => category.isActive)
-                      : [...categories.filter((category) => category.isActive), transaction.category]}
-                    wallets={wallets}
-                  />
+                  <details className="relative shrink-0">
+                    <summary
+                      aria-label={`Aksi transaksi ${transaction.note}`}
+                      title="Aksi transaksi"
+                      className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-xl text-room-muted hover:bg-cream-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400 [&::-webkit-details-marker]:hidden"
+                    >
+                      <MoreHorizontal size={19} aria-hidden="true" />
+                    </summary>
+                    <div className="absolute right-0 top-full z-10 mt-1 min-w-48 rounded-xl border border-room-border bg-white p-1 shadow-lg">
+                      <TransactionEditDialog
+                        transaction={transaction}
+                        categories={transaction.category.isActive
+                          ? categories.filter((category) => category.isActive)
+                          : [...categories.filter((category) => category.isActive), transaction.category]}
+                        wallets={wallets}
+                      />
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.currentTarget.closest("details")?.removeAttribute("open");
+                          void handleDelete(transaction.id);
+                        }}
+                        className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-bold text-peach-600 hover:bg-peach-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400"
+                      >
+                        <Trash2 size={15} aria-hidden="true" /> Hapus transaksi
+                      </button>
+                    </div>
+                  </details>
                 </li>
               );
             })}

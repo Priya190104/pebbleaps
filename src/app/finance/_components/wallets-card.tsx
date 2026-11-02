@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { Plus, Pencil, Trash2, Check, MoreHorizontal, SlidersHorizontal, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/utils";
 import { createWallet, updateWallet, deleteWallet, setWalletBalance } from "@/lib/actions/finance";
@@ -135,25 +136,27 @@ export function WalletsCard({
     "w-full px-3 py-2.5 rounded-xl border-2 border-room-border bg-cream-50 text-room-text text-sm font-bold focus:outline-none focus:border-cream-400 transition-colors";
 
   return (
+    <Dialog.Root open={showAdd} onOpenChange={setShowAdd}>
     <RoomCard className="mb-4">
       <RoomCardHeader
         icon={<span className="text-base">👛</span>}
         title="Kantong Keuangan"
         accent="peach"
         action={
-          <button
-            type="button"
-            onClick={() => setShowAdd((s) => !s)}
-            aria-label={showAdd ? "Tutup tambah kantong" : "Tambah kantong"}
-            className="flex h-11 w-11 items-center justify-center rounded-xl bg-cream-100 text-cream-600 transition-colors hover:bg-cream-200"
-          >
-            <Plus size={14} strokeWidth={2.5} />
-          </button>
+          <Dialog.Trigger asChild>
+            <button
+              type="button"
+              aria-label="Tambah kantong"
+              className="flex h-11 w-11 items-center justify-center rounded-xl bg-cream-100 text-cream-600 transition-colors hover:bg-cream-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400"
+            >
+              <Plus size={17} strokeWidth={2.5} />
+            </button>
+          </Dialog.Trigger>
         }
       />
 
       {/* Total */}
-      {error && <p role="alert" className="mb-3 rounded-lg bg-peach-50 px-3 py-2 text-xs font-semibold text-room-text">{error}</p>}
+      {error && !showAdd && <p role="alert" className="mb-3 rounded-lg bg-peach-50 px-3 py-2 text-xs font-semibold text-room-text">{error}</p>}
       <div className="mb-4 p-3 bg-peach-50 rounded-xl border border-peach-100">
         <p className="text-[10px] font-bold text-room-muted uppercase tracking-wide">Total Semua Kantong</p>
         <p className="text-xl font-extrabold text-room-text">{formatRupiah(total)}</p>
@@ -212,39 +215,52 @@ export function WalletsCard({
               {editId !== wallet.id && (
                 <div className="flex w-full shrink-0 flex-wrap items-center justify-between gap-1.5 sm:w-auto sm:justify-end">
                   <p className="text-sm font-extrabold text-room-text">{formatRupiah(wallet.balance)}</p>
-                  <div className="flex gap-1 opacity-100 transition-opacity group-focus-within:opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAdjustId(adjustId === wallet.id ? null : wallet.id);
-                        setTargetBal(String(wallet.balance));
-                        setEditId(null);
-                      }}
-                      aria-label={`Sesuaikan saldo ${wallet.name}`}
-                      title="Sesuaikan saldo"
-                      className="flex h-11 w-11 items-center justify-center rounded-lg bg-peach-100 text-peach-500 transition-colors hover:bg-peach-200"
+                  <details className="relative">
+                    <summary
+                      aria-label={`Aksi kantong ${wallet.name}`}
+                      title="Aksi kantong"
+                      className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-xl text-room-muted hover:bg-cream-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400 [&::-webkit-details-marker]:hidden"
                     >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setEditId(wallet.id); setEditName(wallet.name); setEditIcon(wallet.icon); setAdjustId(null); }}
-                      aria-label={`Edit kantong ${wallet.name}`}
-                      title="Edit nama"
-                      className="flex h-11 w-11 items-center justify-center rounded-lg bg-cream-100 text-room-muted transition-colors hover:bg-cream-200"
-                    >
-                      <span className="text-[9px] font-bold">Aa</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(wallet.id)}
-                      aria-label={`Hapus kantong ${wallet.name}`}
-                      title="Hapus kantong"
-                      className="flex h-11 w-11 items-center justify-center rounded-lg bg-cream-100 text-room-muted transition-colors hover:bg-peach-100 hover:text-peach-500"
-                    >
-                      <Trash2 size={10} />
-                    </button>
-                  </div>
+                      <MoreHorizontal size={19} aria-hidden="true" />
+                    </summary>
+                    <div className="absolute right-0 top-full z-10 mt-1 min-w-48 rounded-xl border border-room-border bg-white p-1 shadow-lg">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.currentTarget.closest("details")?.removeAttribute("open");
+                          setAdjustId(adjustId === wallet.id ? null : wallet.id);
+                          setTargetBal(String(wallet.balance));
+                          setEditId(null);
+                        }}
+                        className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-bold text-room-text hover:bg-cream-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400"
+                      >
+                        <SlidersHorizontal size={15} aria-hidden="true" /> Sesuaikan saldo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.currentTarget.closest("details")?.removeAttribute("open");
+                          setEditId(wallet.id);
+                          setEditName(wallet.name);
+                          setEditIcon(wallet.icon);
+                          setAdjustId(null);
+                        }}
+                        className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-bold text-room-text hover:bg-cream-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400"
+                      >
+                        <Pencil size={15} aria-hidden="true" /> Edit kantong
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.currentTarget.closest("details")?.removeAttribute("open");
+                          void handleDelete(wallet.id);
+                        }}
+                        className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-bold text-peach-600 hover:bg-peach-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400"
+                      >
+                        <Trash2 size={15} aria-hidden="true" /> Hapus kantong
+                      </button>
+                    </div>
+                  </details>
                 </div>
               )}
             </div>
@@ -278,59 +294,74 @@ export function WalletsCard({
         ))}
       </div>
 
-      {/* Add wallet form */}
-      {showAdd && (
-        <div className="mt-3 p-3 bg-cream-50 rounded-xl border-2 border-cream-200 space-y-2">
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-            <input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Nama kantong"
-              className={inputCls}
-            />
-            <EmojiPicker value={newIcon} onChange={setNewIcon} label="Pilih emoji kantong" />
+      <Dialog.Portal>
+        <Dialog.Overlay className="modal-overlay fixed inset-0 z-50 bg-room-text/25 backdrop-blur-[2px]" />
+        <Dialog.Content className="modal-sheet fixed inset-x-0 bottom-0 z-50 max-h-[90dvh] overflow-y-auto rounded-t-3xl border-t-2 border-room-border bg-white p-5 pb-safe lg:inset-x-auto lg:left-1/2 lg:top-1/2 lg:bottom-auto lg:w-full lg:max-w-md lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-2xl lg:border-2">
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <Dialog.Title className="font-extrabold text-room-text">Tambah kantong</Dialog.Title>
+            <Dialog.Close aria-label="Tutup" className="flex h-11 w-11 items-center justify-center rounded-xl text-room-muted hover:bg-cream-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-400">
+              <X size={18} />
+            </Dialog.Close>
           </div>
-          <label className="block text-xs font-bold text-room-muted">
-            Saldo awal (Rp)
-            <input
-              type="number"
-              min={0}
-              step={1}
-              value={newInitialBalance}
-              onChange={(event) => setNewInitialBalance(event.target.value)}
-              placeholder="0"
-              className={cn(inputCls, "mt-1")}
-            />
-          </label>
-          <select
-            value={newType}
-            onChange={(e) => setNewType(e.target.value)}
-            className={inputCls}
-          >
-            <option value="cash">💵 Tunai</option>
-            <option value="bank">🏦 Bank</option>
-            <option value="card">💳 Kartu</option>
-            <option value="ewallet">📱 e-Wallet</option>
-            <option value="other">📦 Lainnya</option>
-          </select>
-          <div className="flex gap-2">
-            <button
-              onClick={handleCreate}
-              disabled={saving || !newName.trim()}
-              className="flex-1 py-2.5 rounded-xl bg-cream-500 text-white text-sm font-bold hover:bg-cream-600 disabled:opacity-50 transition-colors"
-            >
-              Tambah Kantong
-            </button>
-            <button
-              onClick={() => setShowAdd(false)}
-              className="px-4 py-2.5 rounded-xl border-2 border-room-border text-room-muted text-sm font-bold hover:bg-cream-50 transition-colors"
-            >
+          <Dialog.Description className="mb-4 text-xs font-semibold text-room-muted">
+            Buat tempat untuk mencatat dan memantau saldo.
+          </Dialog.Description>
+          <div className="space-y-3">
+            <label className="block text-xs font-bold text-room-muted">
+              Nama kantong
+              <input
+                value={newName}
+                onChange={(event) => setNewName(event.target.value)}
+                maxLength={80}
+                placeholder="Contoh: Dompet harian"
+                className={cn(inputCls, "mt-1")}
+              />
+            </label>
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <label className="block text-xs font-bold text-room-muted">
+                Jenis kantong
+                <select value={newType} onChange={(event) => setNewType(event.target.value)} className={cn(inputCls, "mt-1")}>
+                  <option value="cash">💵 Tunai</option>
+                  <option value="bank">🏦 Bank</option>
+                  <option value="card">💳 Kartu</option>
+                  <option value="ewallet">📱 e-Wallet</option>
+                  <option value="other">📦 Lainnya</option>
+                </select>
+              </label>
+              <EmojiPicker value={newIcon} onChange={setNewIcon} label="Pilih emoji kantong" />
+            </div>
+            <label className="block text-xs font-bold text-room-muted">
+              Saldo awal (Rp)
+              <input
+                type="number"
+                min={0}
+                step={1}
+                inputMode="numeric"
+                value={newInitialBalance}
+                onChange={(event) => setNewInitialBalance(event.target.value)}
+                placeholder="0"
+                className={cn(inputCls, "mt-1")}
+              />
+            </label>
+          </div>
+          {error && <p role="alert" className="mt-3 rounded-lg bg-peach-50 px-3 py-2 text-xs font-semibold text-room-text">{error}</p>}
+          <div className="mt-5 flex gap-2">
+            <Dialog.Close className="min-h-11 flex-1 rounded-xl border-2 border-room-border px-3 text-sm font-bold text-room-muted hover:bg-cream-50">
               Batal
+            </Dialog.Close>
+            <button
+              type="button"
+              onClick={() => void handleCreate()}
+              disabled={saving || !newName.trim()}
+              className="min-h-11 flex-1 rounded-xl bg-cream-500 px-3 text-sm font-extrabold text-white hover:bg-cream-600 disabled:opacity-50"
+            >
+              {saving ? "Menyimpan..." : "Tambah kantong"}
             </button>
           </div>
-        </div>
-      )}
+        </Dialog.Content>
+      </Dialog.Portal>
       <WalletTransferPanel wallets={wallets} transfers={transfers} />
     </RoomCard>
+    </Dialog.Root>
   );
 }

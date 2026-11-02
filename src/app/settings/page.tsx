@@ -54,12 +54,14 @@ export default async function SettingsPage() {
           <p className="mb-3 text-sm font-semibold text-room-muted">
             Pantau penggunaan Pebble dalam bentuk ringkasan agregat.
           </p>
-          <Link
-            href="/admin"
-            className="inline-flex min-h-11 items-center rounded-xl bg-mint-600 px-4 text-sm font-extrabold text-white hover:bg-mint-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint-400"
-          >
-            Buka dashboard admin
-          </Link>
+          <div className="mt-4">
+            <Link
+              href="/admin"
+              className="flex min-h-12 w-full items-center justify-center rounded-xl border-2 border-mint-600 bg-mint-600 px-4 text-sm font-extrabold text-white hover:bg-mint-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint-400 sm:w-fit"
+            >
+              Buka dashboard analitik
+            </Link>
+          </div>
         </RoomCard>
       )}
 
